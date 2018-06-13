@@ -1,7 +1,7 @@
 ping-pong
 =========
 
-A "code review" system.
+A "code review" system that tries to inspire more lightweight back-and-forth.
 
 # License
 
