@@ -1,6 +1,12 @@
-#@namespace scala pingpong.protocol.ping
+#@namespace scala pingpong.protocol.pingpong
 
 # A 64-bit signed integer is uniformly used in this file for a key into some abstract backend data store.
+typedef i64 UserId;
+
+struct User {
+  1: optional UserId uid;
+}
+
 typedef i64 GroupId;
 
 # NB: Should be used to represent users or groups!
@@ -30,22 +36,15 @@ struct Target {
   2: optional TargetSelection;
 }
 
-enum Scrutiny {
-  # No approval necessary.
-  COMMENT = 0,
-  # Explicit approval is necessary.
-  REVIEW_REQUEST = 1,
-}
-
+# We do not currently differentiate between different types or urgencies of notifications -- it is not currently clear whether that would be useful.
 struct NotifyRequest {
   1: optional Target target;
-  2: optional Scrutiny scrutiny;
 }
 
 typedef list<NotifyRequest> NotificationSelectors;
 
 struct Ping {
-  1: optional Group author;
+  1: optional User author;
   2: optional NotificationSelectors notifies;
   3: optional string comment_text;
 }
@@ -75,7 +74,7 @@ struct ReplyPingRequest {
   3: optional Ping ping;
 }
 
-union PingRequest {
+union PostPingRequest {
   1: optional RootPingRequest root_request;
   2: optional ReplyPingRequest reply_request;
 }
@@ -84,11 +83,32 @@ exception PingSendError {
   1: optional string message;
 }
 
-union PingResponse {
+union PostPingResponse {
   1: optional PingId pid;
   2: optional PingSendError error;
 }
 
+struct LocationRangeQuery {
+
+}
+
+# "scrutiny" as a term and a concept is my interpretation of what is described in https://blog.janestreet.com/putting-the-i-back-in-ide-towards-a-github-explorer/.
+enum Scrutiny {
+  # No approval necessary.
+  COMMENT = 0,
+  # Explicit approval is necessary.
+  REVIEW_REQUEST = 1,
+}
+
+# A ping, but directed at you.
+# TODO: improve description!
+struct Pong {
+  1: optional Scrutiny scrutiny;
+}
+
+struct GetPongsResponse {
+}
+
 service PingPong {
-  PingResponse postPing(1: PingRequest request),
+  PostPingResponse postPing(1: PostPingRequest request),
 }
