@@ -1,7 +1,8 @@
+#@namespace scala pingpong.protocol
+
 include "entities.thrift"
 include "notifications.thrift"
 include "repo_backend.thrift"
-include "review_backend.thrift"
 
 struct Root {
   1: optional repo_backend.PingLocation ping_location;

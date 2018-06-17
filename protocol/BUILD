@@ -1,1 +1,3 @@
-java_thrift_library()
+java_thrift_library(
+  sources=['*.thrift']
+)

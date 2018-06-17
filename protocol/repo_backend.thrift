@@ -9,14 +9,14 @@ struct File {
 typedef i32 LineNumber;
 
 struct LineRangeForFile {
-  1: optional LineNumber begin;
-  2: optional LineNumber end;
+  1: optional LineNumber beginning;
+  2: optional LineNumber ending;
 }
 
 struct FileWithRange {
   1: optional File file;
   # If not provided, the whole file is assumed.
-  2: optional LineRangeInFile line_range_in_file;
+  2: optional LineRangeForFile line_range_in_file;
 }
 
 struct Revision {
@@ -97,5 +97,5 @@ union GetSandboxGlobsResponse {
 }
 
 service RepoBackend {
-  GetSandboxGlobsResponse getSandboxGlobs(1: GetSandboxGlobsRequest),
+  GetSandboxGlobsResponse getSandboxGlobs(1: GetSandboxGlobsRequest request),
 }

@@ -35,7 +35,7 @@ union QueryCollaborationsResponse {
   2: optional ReviewBackendError error;
 }
 
-typedef list<ping.Ping> PingSet;
+typedef list<pingpong.Ping> PingSet;
 
 union PublishPingsResponse {
   1: optional PingIdSet ping_id_set;
@@ -62,7 +62,7 @@ union PongsQuery {
   2: optional CollabsForUser collabs_for_user;
 }
 
-typedef list<pong.Pong> PongSet;
+typedef list<pingpong.Pong> PongSet;
 
 union QueryPongsResponse {
   1: optional PongSet pong_set;
@@ -71,10 +71,10 @@ union QueryPongsResponse {
 
 service ReviewBackend {
   # NB: this should also be used to update the ping ids for a collaboration!
-  QueryCollaborationsResponse queryCollaborations(1: CollaborationQuery),
-  PublishPingsResponse publishPings(1: PingSet),
-  LookupPingsResponse lookupPings(1: PingIdSet),
+  QueryCollaborationsResponse queryCollaborations(1: CollaborationQuery query),
+  PublishPingsResponse publishPings(1: PingSet pings),
+  LookupPingsResponse lookupPings(1: PingIdSet ping_ids),
   # Currently, statuses like "is this PR mergeable?" are left to the frontend, which processes the
   # result of this method.
-  QueryPongsResponse queryPongs(1: PongsQuery),
+  QueryPongsResponse queryPongs(1: PongsQuery query),
 }

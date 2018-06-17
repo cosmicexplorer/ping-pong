@@ -5,7 +5,7 @@
 typedef i64 UserId;
 
 # Should be used to represent a selection of users (including a single user), while UserId is for
-  e.g. identifying the author.
+# e.g. identifying the author.
 typedef i64 GroupId;
 
 typedef i64 PingId;
