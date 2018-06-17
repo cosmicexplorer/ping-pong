@@ -1,16 +1,20 @@
 #@namespace scala pingpong.protocol
 
+struct File {
+  # Path to a file relative to the repo root.
+  1: optional string file_relative_path;
+}
+
 # If this is <= 0, that is an application-level error.
 typedef i32 LineNumber;
 
-struct LineRangeInFile {
+struct LineRangeForFile {
   1: optional LineNumber begin;
   2: optional LineNumber end;
 }
 
 struct FileWithRange {
-  # Path to a file relative to the repo root.
-  1: optional string file_relative_path;
+  1: optional File file;
   # If not provided, the whole file is assumed.
   2: optional LineRangeInFile line_range_in_file;
 }
@@ -50,16 +54,48 @@ struct PathGlob {
   1: optional string relative_glob;
 }
 
-struct FileGlobWithinRevisionRange {
+typedef list<PathGlob> PathGlobs;
+
+struct PathGlobsWithinRevisionRange {
   # The application should use all the commits in the collaboration if this is not provided.
   1: optional RevisionRange revision_range;
-  2: optional PathGlob path_glob;
+  2: optional PathGlobs path_globs;
 }
 
 # Specifies a range which can resolve to zero or more Hunk objects.
 union HunkGlob {
-  1: optional FileGlobWithinRevisionRange file_revision_range_glob;
+  1: optional PathGlobsWithinRevisionRange path_revision_range_globs;
+  # This is an extremely narrow selector.
   2: optional Hunk hunk;
 }
 
 typedef list<HunkGlob> HunkGlobs;
+
+struct GetSandboxGlobsRequest {
+  1: optional Revision revision;
+  2: optional PathGlobs path_globs;
+}
+
+struct Sandbox {
+  1: optional string sandbox_root_absolute_path;
+}
+
+typedef list<File> Fileset;
+
+struct SandboxWithExpandedGlobs {
+  1: optional Sandbox sandbox;
+  2: optional Fileset fileset;
+}
+
+exception RepoBackendError {
+  1: optional string message;
+}
+
+union GetSandboxGlobsResponse {
+  1: optional SandboxWithExpandedGlobs sandbox_expanded_globs;
+  2: optional RepoBackendError error;
+}
+
+service RepoBackend {
+  GetSandboxGlobsResponse getSandboxGlobs(1: GetSandboxGlobsRequest),
+}
