@@ -1,0 +1,1 @@
+#@namespace scala pingpong.protocol

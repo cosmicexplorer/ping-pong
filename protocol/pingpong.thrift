@@ -1,19 +1,7 @@
-#@namespace scala pingpong.protocol.pingpong
+#@namespace scala pingpong.protocol
 
-# A 64-bit signed integer is uniformly used in this file for a key into some abstract backend data
-# store.
-typedef i64 UserId;
-
-struct User {
-  1: optional UserId uid;
-}
-
-typedef i64 GroupId;
-
-# NB: Should be used to represent users or groups!
-struct Group {
-  1: optional GroupId gid;
-}
+include "entities.thrift"
+include "location.thrift"
 
 # This struct maps to a "notification" in a code review system that does not request explicit
 # approval.
@@ -52,26 +40,23 @@ struct NotifyRequest {
 
 typedef list<NotifyRequest> NotificationSpecification;
 
-# We separate PingContents from the Ping struct so that a service can manipulate the objects in our
-# system without having to understand/model backend-specific dynamics of groups, etc.
-struct PingContents {
-  1: optional User author;
-  2: optional string comment_text;
-}
-
 struct Ping {
-  1: optional PingContents contents;
+  1: optional location.Location location;
   2: optional NotificationSpecification notifies;
+  3: optional User author;
+  # This is just the text a human wrote -- individual backends may add additional text, e.g. adding
+  # a github @user in the comment text for all the users that need to be notified. Backends should
+  # ensure they return exactly the comment_text of the Ping they received, or update the
+  # comment_text of the ping at that id.
+  4: optional string comment_text;
 }
 
-typedef i64 LocationId;
-
-struct Location {
-  1: optional LocationId lid;
+struct ParentPing {
+  1: optional PingId pid;
 }
 
 struct RootPingRequest {
-  1: optional Location location;
+  1: optional Hunk pertinent_range;
   2: optional Ping ping;
 }
 
@@ -94,17 +79,53 @@ union PostPingRequest {
   2: optional ReplyPingRequest reply_request;
 }
 
-exception PingSendError {
+# We don't ever throw anything in this file, but it's helpful to mark it as an error type with
+# "exception".
+exception PostPingError {
   1: optional string message;
 }
 
 union PostPingResponse {
   1: optional PingId pid;
-  2: optional PingSendError error;
+  2: optional PostPingError error;
 }
 
-struct LocationRangeQuery {
+exception GetPingError {
+  1: optional string message;
+}
 
+union GetPingResponse {
+  1: optional Ping ping;
+  2: optional GetPingError error;
+}
+
+typedef i64 CollaborationId;
+
+# E.g. a github pull request.
+struct Collaboration {
+  1: optional CollaborationId cid;
+}
+
+# E.g. a git commit range.
+struct RevisionRange {
+  # This is going to be different across different version control systems, so we leave it as a
+  # string for now.
+  1: optional string backend_range_spec;
+}
+
+# Specifies a range which can resolve to zero or more Hunk objects. This will be able to
+# specify a selection of files at least. This will not be backend-specific and wil not be limited to
+# file paths.
+struct HunkFilter {
+  1: optional
+}
+
+typedef list<Collaboration> CollaborationSet;
+
+struct PongQuery {
+  # Search for pings made in these collaborations.
+  1: optional CollaborationSet collaboration_set;
+  1: optional HunkFilter pertinent_range_filter;
 }
 
 # "scrutiny" as a term and a concept is my interpretation of what is described in
@@ -118,14 +139,17 @@ enum Scrutiny {
 
 # A ping, but directed at you.
 struct Pong {
-  1: optional Location location;
-  2: optional PingContents contents;
-  3: optional Scrutiny scrutiny;
+  1: optional PingId pid;
+  2: optional Scrutiny scrutiny;
 }
 
+typedef list<Pong> PongCollection;
+
 struct GetPongsResponse {
+  1: optional PongCollection pongs;
 }
 
 service PingPong {
   PostPingResponse postPing(1: PostPingRequest request),
+  GetPingResponse getPing(1: PingId pid),
 }
