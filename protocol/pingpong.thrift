@@ -1,6 +1,7 @@
 #@namespace scala pingpong.protocol.pingpong
 
-# A 64-bit signed integer is uniformly used in this file for a key into some abstract backend data store.
+# A 64-bit signed integer is uniformly used in this file for a key into some abstract backend data
+# store.
 typedef i64 UserId;
 
 struct User {
@@ -14,7 +15,8 @@ struct Group {
   1: optional GroupId gid;
 }
 
-# This struct maps to a "notification" in a code review system that does not request explicit approval.
+# This struct maps to a "notification" in a code review system that does not request explicit
+# approval.
 # Unless stated otherwise, a "notification" is for a blocking review.
 struct NonBlockingNotification {
   1: optional Group group;
@@ -28,7 +30,8 @@ struct AllGroupMembers {
   1: optional Group group;
 }
 
-# This is not a key into anything, only interpreted as a literal unsigned number. Providing a negative value is an application-level error.
+# This is not a key into anything, only interpreted as a literal unsigned number. Providing a
+# negative value is an application-level error.
 typedef i32 SelectionThreshold;
 
 struct AtLeastNGroupMembers {
@@ -49,7 +52,8 @@ struct NotifyRequest {
 
 typedef list<NotifyRequest> NotificationSpecification;
 
-# We separate PingContents from the Ping struct so that a service can manipulate the objects in our system without having to understand/model backend-specific dynamics of groups, etc.
+# We separate PingContents from the Ping struct so that a service can manipulate the objects in our
+# system without having to understand/model backend-specific dynamics of groups, etc.
 struct PingContents {
   1: optional User author;
   2: optional string comment_text;
@@ -103,7 +107,8 @@ struct LocationRangeQuery {
 
 }
 
-# "scrutiny" as a term and a concept is my interpretation of what is described in https://blog.janestreet.com/putting-the-i-back-in-ide-towards-a-github-explorer/.
+# "scrutiny" as a term and a concept is my interpretation of what is described in
+# https://blog.janestreet.com/putting-the-i-back-in-ide-towards-a-github-explorer/.
 enum Scrutiny {
   # No approval necessary.
   COMMENT = 0,
