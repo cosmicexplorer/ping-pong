@@ -14,39 +14,50 @@ struct Group {
   1: optional GroupId gid;
 }
 
-struct AnyGroupMember {}
+# This struct maps to a "notification" in a code review system that does not request explicit approval.
+# Unless stated otherwise, a "notification" is for a blocking review.
+struct NonBlockingNotification {
+  1: optional Group group;
+}
 
-struct AllGroupMembers {}
+struct AnyGroupMember {
+  1: optional Group group;
+}
+
+struct AllGroupMembers {
+  1: optional Group group;
+}
 
 # This is not a key into anything, only interpreted as a literal unsigned number. Providing a negative value is an application-level error.
 typedef i32 SelectionThreshold;
 
 struct AtLeastNGroupMembers {
   1: optional SelectionThreshold threshold;
+  2: optional Group group;
 }
 
 union TargetSelection {
-  1: optional AnyGroupMember any;
-  2: optional AllGroupMembers all;
-  3: optional AtLeastNGroupMembers at_least;
+  1: optional NonBlockingNotification non_blocking;
+  2: optional AnyGroupMember any;
+  3: optional AllGroupMembers all;
+  4: optional AtLeastNGroupMembers at_least;
 }
 
-struct Target {
-  1: optional Group group;
-  2: optional TargetSelection;
-}
-
-# We do not currently differentiate between different types or urgencies of notifications -- it is not currently clear whether that would be useful.
 struct NotifyRequest {
-  1: optional Target target;
+  1: optional TargetSelection target;
 }
 
-typedef list<NotifyRequest> NotificationSelectors;
+typedef list<NotifyRequest> NotificationSpecification;
+
+# We separate PingContents from the Ping struct so that a service can manipulate the objects in our system without having to understand/model backend-specific dynamics of groups, etc.
+struct PingContents {
+  1: optional User author;
+  2: optional string comment_text;
+}
 
 struct Ping {
-  1: optional User author;
-  2: optional NotificationSelectors notifies;
-  3: optional string comment_text;
+  1: optional PingContents contents;
+  2: optional NotificationSpecification notifies;
 }
 
 typedef i64 LocationId;
@@ -101,9 +112,10 @@ enum Scrutiny {
 }
 
 # A ping, but directed at you.
-# TODO: improve description!
 struct Pong {
-  1: optional Scrutiny scrutiny;
+  1: optional Location location;
+  2: optional PingContents contents;
+  3: optional Scrutiny scrutiny;
 }
 
 struct GetPongsResponse {
