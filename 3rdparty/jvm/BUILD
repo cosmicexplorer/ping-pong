@@ -13,8 +13,16 @@ jar_library(
     # FIXME: there's an error here where something somewhere is asking for version 0.0.9 of this jar
     # -- why (???)
     jar(org='com.twitter.common', name='metrics', rev='0.0.39'),
-    # FIXME: why do i have to do this?
+    # FIXME: why do i have to do this? This is why we have oss.sonatype.org in our coursier repos.
     jar(org='org.apache.thrift', name='libthrift', rev='0.6.1'),
+  ],
+)
+
+jar_library(
+  # GraphQL library
+  name='sangria',
+  jars=[
+    jar(org='org.sangria-graphql', name='sangria_2.12', rev='1.4.1'),
   ],
 )
 

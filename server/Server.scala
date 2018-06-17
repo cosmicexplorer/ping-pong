@@ -3,15 +3,15 @@ package pingpong.server
 import com.twitter.finatra.http._
 import com.twitter.finatra.http.filters.CommonFilters
 import com.twitter.finatra.http.routing.HttpRouter
-import com.twitter.finatra.request.FormParam
-import com.twitter.finatra.validation.NotEmpty;
 import com.twitter.inject.Logging
 
-case class MyRequest(@NotEmpty @FormParam text: String)
+// These become json!
+case class MyRequest(text: String)
 case class MyResponse(text: String)
 
 class SimpleController extends Controller {
-  post("/") { request: MyRequest => MyResponse(s"request text ${}") }
+  post("/") { request: MyRequest =>
+    MyResponse(s"request text: ${request.text}") }
 }
 
 class Server extends HttpServer with Logging {
