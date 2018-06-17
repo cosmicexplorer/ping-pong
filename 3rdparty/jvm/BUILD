@@ -27,6 +27,13 @@ jar_library(
 )
 
 jar_library(
+  name='sangria-json4s-jackson',
+  jars=[
+    jar(org='org.sangria-graphql', name='sangria-json4s-jackson_2.12', rev='1.0.0'),
+  ]
+)
+
+jar_library(
   name='slf4j',
   jars=[
     jar(org='org.slf4j', name='slf4j-simple', rev='1.7.21'),
