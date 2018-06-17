@@ -56,10 +56,7 @@ struct FileGlobWithinRevisionRange {
   2: optional PathGlob path_glob;
 }
 
-# Specifies a range which can resolve to zero or more Hunk objects. This will be able to specify a
-# selection of files at least. This will not be backend-specific and wil not be limited to file
-# paths. The application should use all pings with a WholeRepo location if the result of expanding
-# the HunkGlob is empty, or if no HunkGlobs are provided.
+# Specifies a range which can resolve to zero or more Hunk objects.
 union HunkGlob {
   1: optional FileGlobWithinRevisionRange file_revision_range_glob;
   2: optional Hunk hunk;

@@ -1,5 +1,7 @@
 #@namespace scala pingpong.protocol
 
+include "entities.thrift"
+
 # This struct maps to a "notification" in a code review system that does not request explicit
 # approval.
 # Unless stated otherwise, a "notification" is for a blocking review.
@@ -7,8 +9,7 @@ struct NonBlockingNotification {}
 
 struct AnyMember {}
 
-struct AllMembers {
-}
+struct AllMembers {}
 
 # This is not a key into anything, only interpreted as a literal unsigned number. Providing a
 # negative value is an application-level error.
@@ -28,7 +29,7 @@ union TargetSelection {
 typedef list<TargetSelection> TargetSpecification;
 
 struct ApprovalRequest {
-  1: optional PingId pid;
+  1: optional entities.PingId pid;
 }
 
 typedef list<ApprovalRequest> ApprovalSpecification;

@@ -7,17 +7,18 @@ include "repo_backend.thrift"
 # NB: we don't use "required" ever!
 
 struct Ping {
-  1: optional repo_backend.PingLocation ping_location;
-  2: optional notifications.TargetSpecification notifies;
+  1: optional entities.CollaborationId collaboration_id;
+  2: optional repo_backend.PingLocation ping_location;
+  3: optional notifications.TargetSpecification notifies;
   # NB: It should be enforced at the application level some approval permissions model,
   # e.g. "approvals must be done in a ping that replies (directly?) to the ping being approved".
-  3: optional notifications.ApprovalSpecification approves;
-  3: optional entities.UserId author;
+  4: optional notifications.ApprovalSpecification approves;
+  5: optional entities.UserId author;
   # This is just the text a human wrote -- individual backends may add additional text, e.g. adding
   # a github @user in the comment text for all the users that need to be notified. Backends should
   # ensure they return exactly the comment_text of the Ping they received, or update the
   # comment_text of the ping at that id.
-  4: optional string comment_text;
+  6: optional string comment_text;
 }
 
 struct RootPingRequest {
@@ -39,30 +40,37 @@ union PostPingRequest {
 
 # We don't ever throw anything in this file, but it's helpful to mark it as an error type with
 # "exception".
-exception PostPingError {
+exception PingError {
   1: optional string message;
 }
 
 union PostPingResponse {
   1: optional PingId pid;
-  2: optional PostPingError error;
-}
-
-exception GetPingError {
-  1: optional string message;
+  2: optional PingError error;
 }
 
 union GetPingResponse {
   1: optional Ping ping;
-  2: optional GetPingError error;
+  2: optional PingError error;
 }
 
-typedef list<Collaboration> CollaborationSet;
+# It is an application-level error if this is empty.
+typedef list<entities.CollaborationId> ExplicitCollaborationSet;
 
-struct PongQuery {
-  # Search for pings made in these collaborations.
-  1: optional CollaborationSet collaboration_set;
-  1: optional HunkFilter pertinent_range_filter;
+struct CollabsForUser {
+  1: optional entities.UserId user_id;
+}
+
+union CollaborationSpec {
+  1: optional ExplicitCollaborationSet explicit_collaboration_set;
+  2: optional CollabsForUser collabs_for_user;
+}
+
+struct PongsQuery {
+  1: optional CollaborationSpec collaboration_spec;
+  # The application should use all pings with a WholeRepo location if the result of expanding the
+  # HunkGlob is empty, or if no HunkGlobs are provided.
+  2: optional repo_backend.HunkGlobs hunk_globs;
 }
 
 # "scrutiny" as a term and a concept is my interpretation of what is described in
@@ -76,17 +84,21 @@ enum Scrutiny {
 
 # A ping, but directed at you.
 struct Pong {
-  1: optional PingId pid;
-  2: optional Scrutiny scrutiny;
+  1: optional entities.PingId ping_id;
+  # This field may be unset, which means you have to call getPing() with ping_id.
+  2: optional Ping ping;
+  3: optional Scrutiny scrutiny;
 }
 
 typedef list<Pong> PongCollection;
 
-struct GetPongsResponse {
+union QueryPongsResponse {
   1: optional PongCollection pongs;
+  2: optional PingError error;
 }
 
 service PingPong {
   PostPingResponse postPing(1: PostPingRequest request),
   GetPingResponse getPing(1: PingId pid),
+  QueryPongsResponse queryPongs(1: PongsQuery),
 }
