@@ -1,3 +1,5 @@
 java_thrift_library(
-  sources=['*.thrift']
+  sources=['*.thrift'],
+  language='scala',
+  fatal_warnings=False,
 )

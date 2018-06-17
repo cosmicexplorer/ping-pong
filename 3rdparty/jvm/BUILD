@@ -1,4 +1,11 @@
 jar_library(
+  name='slf4j-impl',
+  jars=[
+    jar(org='ch.qos.logback', name='logback-classic', rev='1.2.3'),
+  ],
+)
+
+jar_library(
   name='guice',
   jars=[
     jar(org='com.google.inject', name='guice', rev='4.2.0'),
@@ -6,36 +13,79 @@ jar_library(
 )
 
 jar_library(
-  name='finatra-http',
+  name='nailgun-server',
   jars=[
-    # FIXME: why do I have to manually specify "_2.12" here???
-    jar(org='com.twitter', name='finatra-http_2.12', rev='18.6.0'),
-    # FIXME: there's an error here where something somewhere is asking for version 0.0.9 of this jar
-    # -- why (???)
-    jar(org='com.twitter.common', name='metrics', rev='0.0.39'),
-    # FIXME: why do i have to do this? This is why we have oss.sonatype.org in our coursier repos.
+    jar(org='com.martiansoftware', name='nailgun-server', rev='0.9.1'),
+  ],
+)
+
+TWITTER_JVM_REV = '18.6.0'
+
+jar_library(
+  name='finagle-thrift',
+  jars=[
+    jar(org='com.twitter', name='finagle-thrift_2.12', rev=TWITTER_JVM_REV,
+        excludes=[exclude(org='org.apache', name='libthrift')]),
+  ],
+  dependencies=[
+    ':libthrift-0.6.1',
+  ],
+)
+
+jar_library(
+  name='finatra-thrift',
+  jars=[
+    jar(org='com.twitter', name='finatra-thrift_2.12', rev=TWITTER_JVM_REV,
+        excludes=[exclude(org='org.apache', name='libthrift')]),
+  ],
+  dependencies=[
+    ':libthrift-0.6.1',
+  ],
+)
+
+jar_library(
+  name='scrooge-core',
+  jars=[
+    jar(org='com.twitter', name='scrooge-core_2.12', rev=TWITTER_JVM_REV,
+        excludes=[exclude(org='org.apache', name='libthrift')]),
+  ],
+  dependencies=[
+    ':libthrift-0.6.1',
+  ],
+)
+
+jar_library(
+  name='scrooge-generator',
+  jars=[
+    jar(org='com.twitter', name='scrooge-generator_2.12', rev=TWITTER_JVM_REV,
+        excludes=[exclude(org='org.apache', name='libthrift')]),
+  ],
+  dependencies=[
+    ':libthrift-0.6.1',
+  ],
+)
+
+jar_library(
+  name='scrooge-linter',
+  jars=[
+    jar(org='com.twitter', name='scrooge-linter', rev=TWITTER_JVM_REV,
+        excludes=[exclude(org='org.apache', name='libthrift')]),
+  ],
+  dependencies=[
+    ':libthrift-0.6.1',
+  ],
+)
+
+jar_library(
+  name='util-core',
+  jars=[
+    jar(org='com.twitter', name='util-core', rev=TWITTER_JVM_REV),
+  ],
+)
+
+jar_library(
+  name='libthrift-0.6.1',
+  jars=[
     jar(org='org.apache.thrift', name='libthrift', rev='0.6.1'),
-  ],
-)
-
-jar_library(
-  # GraphQL library
-  name='sangria',
-  jars=[
-    jar(org='org.sangria-graphql', name='sangria_2.12', rev='1.4.1'),
-  ],
-)
-
-jar_library(
-  name='sangria-json4s-jackson',
-  jars=[
-    jar(org='org.sangria-graphql', name='sangria-json4s-jackson_2.12', rev='1.0.0'),
-  ]
-)
-
-jar_library(
-  name='slf4j',
-  jars=[
-    jar(org='org.slf4j', name='slf4j-simple', rev='1.7.21'),
   ],
 )

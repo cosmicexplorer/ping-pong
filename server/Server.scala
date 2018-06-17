@@ -1,23 +1,26 @@
 package pingpong.server
 
-import com.twitter.finatra.http._
-import com.twitter.finatra.http.filters.CommonFilters
-import com.twitter.finatra.http.routing.HttpRouter
+import pingpong.protocol.repo_backend.{GetSandboxGlobsResponse, RepoBackend, RepoBackendError}
+
+import com.twitter.finatra.thrift._
+import com.twitter.finatra.thrift.routing.ThriftRouter
 import com.twitter.inject.Logging
+import com.twitter.util.Future
 
 // These become json!
-case class MyRequest(text: String)
-case class MyResponse(text: String)
 
-class SimpleController extends Controller {
-  post("/") { request: MyRequest =>
-    MyResponse(s"request text: ${request.text}") }
+class SimpleController extends Controller with RepoBackend.ServicePerEndpoint {
+  override val getSandboxGlobs = handle(RepoBackend.GetSandboxGlobs) {
+    args: RepoBackend.GetSandboxGlobs.Args => {
+      val request = args.request;
+      Future(GetSandboxGlobsResponse.Error(RepoBackendError(Some("huh"))))
+    }
+  }
 }
 
-class Server extends HttpServer with Logging {
-  override def configureHttp(router: HttpRouter): Unit = {
+class Server extends ThriftServer with Logging {
+  override def configureThrift(router: ThriftRouter): Unit = {
     router
-      .filter[CommonFilters]
       .add[SimpleController]
   }
 }

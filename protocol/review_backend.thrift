@@ -1,10 +1,10 @@
-#@namespace scala pingpong.protocol
+#@namespace scala pingpong.protocol.review_backend
 
 include "entities.thrift"
 include "pingpong.thrift"
 include "repo_backend.thrift"
 
-typedef list<entities.PingId> PingIdSet;
+typedef list<entities.PingId> PingIdSet
 
 struct Collaboration {
   1: optional repo_backend.RevisionRange revision_range;
@@ -13,38 +13,38 @@ struct Collaboration {
 }
 
 # It is an application-level error if this is empty.
-typedef list<entities.CollaborationId> ExplicitCollaborationSet;
+typedef list<entities.CollaborationId> ExplicitCollaborationSet
 
 struct CollabsForUser {
   1: optional entities.UserId user_id;
 }
 
 union CollaborationQuery {
-  1: optional ExplicitCollaborationSet explicit_collaboration_set;
-  2: optional CollabsForUser collabs_for_user;
+  1: ExplicitCollaborationSet explicit_collaboration_set;
+  2: CollabsForUser collabs_for_user;
 }
 
-typedef map<entities.CollaborationId, Collaboration> MatchedCollaborations;
+typedef map<entities.CollaborationId, Collaboration> MatchedCollaborations
 
 exception ReviewBackendError {
   1: optional string message;
 }
 
 union QueryCollaborationsResponse {
-  1: optional MatchedCollaborations matched_collaborations;
-  2: optional ReviewBackendError error;
+  1: MatchedCollaborations matched_collaborations;
+  2: ReviewBackendError error;
 }
 
-typedef list<pingpong.Ping> PingSet;
+typedef list<pingpong.Ping> PingSet
 
 union PublishPingsResponse {
-  1: optional PingIdSet ping_id_set;
-  2: optional ReviewBackendError error;
+  1: PingIdSet ping_id_set;
+  2: ReviewBackendError error;
 }
 
 union LookupPingsResponse {
-  1: optional PingSet ping_set;
-  2: optional ReviewBackendError error;
+  1: PingSet ping_set;
+  2: ReviewBackendError error;
 }
 
 struct CollaborationHunk {
@@ -55,18 +55,18 @@ struct CollaborationHunk {
 }
 
 # It is an application-level error if this is empty.
-typedef list<CollaborationHunk> CollaborationGlobs;
+typedef list<CollaborationHunk> CollaborationGlobs
 
 union PongsQuery {
-  1: optional CollaborationGlobs collaboration_globs;
-  2: optional CollabsForUser collabs_for_user;
+  1: CollaborationGlobs collaboration_globs;
+  2: CollabsForUser collabs_for_user;
 }
 
-typedef list<pingpong.Pong> PongSet;
+typedef list<pingpong.Pong> PongSet
 
 union QueryPongsResponse {
-  1: optional PongSet pong_set;
-  2: optional ReviewBackendError error;
+  1: PongSet pong_set;
+  2: ReviewBackendError error;
 }
 
 service ReviewBackend {

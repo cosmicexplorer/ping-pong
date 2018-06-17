@@ -1,4 +1,4 @@
-#@namespace scala pingpong.protocol
+#@namespace scala pingpong.protocol.repo_backend
 
 struct File {
   # Path to a file relative to the repo root.
@@ -6,7 +6,7 @@ struct File {
 }
 
 # If this is <= 0, that is an application-level error.
-typedef i32 LineNumber;
+typedef i32 LineNumber
 
 struct LineRangeForFile {
   1: optional LineNumber beginning;
@@ -31,15 +31,15 @@ struct Hunk {
   2: optional FileWithRange file_with_range;
 }
 
-typedef list<Hunk> HunkCollection;
+typedef list<Hunk> HunkCollection
 
 # Used to represent comments not tied to a specific file or set of files (e.g. github PR comments in
 # the main thread).
 struct WholeRepo {}
 
 union PingLocation {
-  1: optional HunkCollection hunk_collection;
-  2: optional WholeRepo whole_repo;
+  1: HunkCollection hunk_collection;
+  2: WholeRepo whole_repo;
 }
 
 # E.g. a git commit range.
@@ -54,7 +54,7 @@ struct PathGlob {
   1: optional string relative_glob;
 }
 
-typedef list<PathGlob> PathGlobs;
+typedef list<PathGlob> PathGlobs
 
 struct PathGlobsWithinRevisionRange {
   # The application should use all the commits in the collaboration if this is not provided.
@@ -64,12 +64,12 @@ struct PathGlobsWithinRevisionRange {
 
 # Specifies a range which can resolve to zero or more Hunk objects.
 union HunkGlob {
-  1: optional PathGlobsWithinRevisionRange path_revision_range_globs;
+  1: PathGlobsWithinRevisionRange path_revision_range_globs;
   # This is an extremely narrow selector.
-  2: optional Hunk hunk;
+  2: Hunk hunk;
 }
 
-typedef list<HunkGlob> HunkGlobs;
+typedef list<HunkGlob> HunkGlobs
 
 struct GetSandboxGlobsRequest {
   1: optional Revision revision;
@@ -80,7 +80,7 @@ struct Sandbox {
   1: optional string sandbox_root_absolute_path;
 }
 
-typedef list<File> Fileset;
+typedef list<File> Fileset
 
 struct SandboxWithExpandedGlobs {
   1: optional Sandbox sandbox;
@@ -92,8 +92,8 @@ exception RepoBackendError {
 }
 
 union GetSandboxGlobsResponse {
-  1: optional SandboxWithExpandedGlobs sandbox_expanded_globs;
-  2: optional RepoBackendError error;
+  1: SandboxWithExpandedGlobs sandbox_expanded_globs;
+  2: RepoBackendError error;
 }
 
 service RepoBackend {

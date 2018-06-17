@@ -1,9 +1,9 @@
 scala_library(
   dependencies=[
-    '3rdparty/jvm:finatra-http',
+    '3rdparty/jvm:finatra-thrift',
     '3rdparty/jvm:guice',
-    '3rdparty/jvm:sangria',
-    '3rdparty/jvm:slf4j',
+    '3rdparty/jvm:slf4j-impl',
+    'protocol',
   ]
 )
 

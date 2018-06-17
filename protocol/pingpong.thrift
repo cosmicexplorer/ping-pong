@@ -1,4 +1,4 @@
-#@namespace scala pingpong.protocol
+#@namespace scala pingpong.protocol.pingpong
 
 include "entities.thrift"
 include "notifications.thrift"
@@ -16,8 +16,8 @@ struct Reply {
 }
 
 union PingSource {
-  1: optional Root root;
-  2: optional Reply reply;
+  1: Root root;
+  2: Reply reply;
 }
 
 struct Ping {
