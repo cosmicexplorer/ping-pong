@@ -74,5 +74,7 @@ service ReviewBackend {
   QueryCollaborationsResponse queryCollaborations(1: CollaborationQuery),
   PublishPingsResponse publishPings(1: PingSet),
   LookupPingsResponse lookupPings(1: PingIdSet),
+  # Currently, statuses like "is this PR mergeable?" are left to the frontend, which processes the
+  # result of this method.
   QueryPongsResponse queryPongs(1: PongsQuery),
 }
