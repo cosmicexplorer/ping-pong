@@ -6,6 +6,13 @@ target(
 )
 
 target(
+  name='scala-library',
+  dependencies=[
+    '3rdparty/jvm:scala-library',
+  ],
+)
+
+target(
   name='scala-repl',
   dependencies=[
     '3rdparty/jvm:scala-repl',
