@@ -1,6 +1,10 @@
 package pingpong.server
 
-import pingpong.protocol.repo_backend.{GetSandboxGlobsResponse, RepoBackend, RepoBackendError}
+import pingpong.protocol.repo_backend.{
+  GetSandboxGlobsResponse,
+  RepoBackend,
+  RepoBackendError
+}
 
 import com.twitter.finatra.thrift._
 import com.twitter.finatra.thrift.routing.ThriftRouter
@@ -11,10 +15,11 @@ import com.twitter.util.Future
 
 class SimpleController extends Controller with RepoBackend.ServicePerEndpoint {
   override val getSandboxGlobs = handle(RepoBackend.GetSandboxGlobs) {
-    args: RepoBackend.GetSandboxGlobs.Args => {
-      val request = args.request;
-      Future(GetSandboxGlobsResponse.Error(RepoBackendError(Some("huh"))))
-    }
+    args: RepoBackend.GetSandboxGlobs.Args =>
+      {
+        // val request = args.request;
+        Future(GetSandboxGlobsResponse.Error(RepoBackendError(Some("huh"))))
+      }
   }
 }
 

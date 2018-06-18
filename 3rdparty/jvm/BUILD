@@ -1,7 +1,7 @@
 jar_library(
-  name='slf4j-impl',
+  name='commons-lang',
   jars=[
-    jar(org='ch.qos.logback', name='logback-classic', rev='1.2.3'),
+    jar(org='commons-lang', name='commons-lang', rev='2.5'),
   ],
 )
 
@@ -12,74 +12,93 @@ jar_library(
   ],
 )
 
-jar_library(
-  name='nailgun-server',
-  jars=[
-    jar(org='com.martiansoftware', name='nailgun-server', rev='0.9.1'),
-  ],
-)
-
 TWITTER_JVM_REV = '18.6.0'
 
 jar_library(
   name='finagle-thrift',
   jars=[
-    jar(org='com.twitter', name='finagle-thrift_2.12', rev=TWITTER_JVM_REV,
-        excludes=[exclude(org='org.apache', name='libthrift')]),
+    scala_jar(org='com.twitter', name='finagle-thrift', rev=TWITTER_JVM_REV,
+              classifier='test',
+              excludes=[exclude(org='org.apache', name='libthrift')]),
   ],
   dependencies=[
-    ':libthrift-0.6.1',
+    ':thrift-0.6.1',
   ],
+  scope='compile test',
 )
 
 jar_library(
   name='finatra-thrift',
   jars=[
-    jar(org='com.twitter', name='finatra-thrift_2.12', rev=TWITTER_JVM_REV,
-        excludes=[exclude(org='org.apache', name='libthrift')]),
+    scala_jar(org='com.twitter', name='finatra-thrift', rev=TWITTER_JVM_REV,
+              classifier='compile;test',
+              excludes=[
+                exclude(org='com.twitter', name='finagle-thrift'),
+                exclude(org='org.apache', name='libthrift'),
+              ]),
   ],
   dependencies=[
-    ':libthrift-0.6.1',
+    ':finagle-thrift',
+    ':thrift-0.6.1',
   ],
+  scope='compile test',
+)
+
+jar_library(
+  name='inject-thrift',
+  jars=[
+    scala_jar(org='com.twitter', name='inject-thrift', rev=TWITTER_JVM_REV,
+              classifier='test',
+              excludes=[exclude(org='org.apache', name='libthrift')]),
+  ],
+  dependencies=[
+    ':thrift-0.6.1',
+  ],
+  scope='compile test',
+)
+
+jar_library(
+  name='inject-thrift-client',
+  jars=[
+    scala_jar(org='com.twitter', name='inject-thrift-client', rev=TWITTER_JVM_REV,
+              excludes=[exclude(org='org.apache', name='libthrift')]),
+  ],
+  dependencies=[
+    ':thrift-0.6.1',
+  ],
+  scope='compile test',
 )
 
 jar_library(
   name='scrooge-core',
   jars=[
-    jar(org='com.twitter', name='scrooge-core_2.12', rev=TWITTER_JVM_REV,
-        excludes=[exclude(org='org.apache', name='libthrift')]),
+    scala_jar(org='com.twitter', name='scrooge-core', rev=TWITTER_JVM_REV,
+              excludes=[exclude(org='org.apache', name='libthrift')]),
   ],
   dependencies=[
-    ':libthrift-0.6.1',
+    ':thrift-0.6.1',
   ],
 )
 
 jar_library(
   name='scrooge-generator',
   jars=[
-    jar(org='com.twitter', name='scrooge-generator_2.12', rev=TWITTER_JVM_REV,
-        excludes=[exclude(org='org.apache', name='libthrift')]),
+    scala_jar(org='com.twitter', name='scrooge-generator', rev=TWITTER_JVM_REV,
+              excludes=[exclude(org='org.apache', name='libthrift')]),
   ],
   dependencies=[
-    ':libthrift-0.6.1',
+    ':thrift-0.6.1',
   ],
 )
 
 jar_library(
   name='scrooge-linter',
   jars=[
-    jar(org='com.twitter', name='scrooge-linter', rev=TWITTER_JVM_REV,
-        excludes=[exclude(org='org.apache', name='libthrift')]),
+    scala_jar(org='com.twitter', name='scrooge-linter', rev=TWITTER_JVM_REV,
+              excludes=[exclude(org='org.apache', name='libthrift')]),
   ],
   dependencies=[
-    ':libthrift-0.6.1',
-  ],
-)
-
-jar_library(
-  name='util-core',
-  jars=[
-    jar(org='com.twitter', name='util-core', rev=TWITTER_JVM_REV),
+    ':thrift-0.6.1',
   ],
 )
 
@@ -87,5 +106,44 @@ jar_library(
   name='libthrift-0.6.1',
   jars=[
     jar(org='org.apache.thrift', name='libthrift', rev='0.6.1'),
+  ],
+)
+
+target(
+  name='thrift-0.6.1',
+  dependencies=[
+    ':commons-lang',
+    ':libthrift-0.6.1',
+    ':slf4j-api',
+  ]
+)
+
+SCALA_REV = '2.12.6'
+
+jar_library(
+  name='scala-compiler',
+  jars=[
+    jar(org='org.scala-lang', name='scala-compiler', rev=SCALA_REV),
+  ]
+)
+
+jar_library(
+  name='scala-repl',
+  jars=[
+    scala_jar(org='org.scala-lang', name='scala-repl', rev=SCALA_REV),
+  ]
+)
+
+jar_library(
+  name='scala-runtime',
+  jars=[
+    scala_jar(org='org.scala-lang', name='scala-runtime', rev=SCALA_REV),
+  ]
+)
+
+jar_library(
+  name='slf4j-api',
+  jars=[
+    jar(org='org.slf4j', name='slf4j-api', rev='1.6.1'),
   ],
 )

@@ -1,6 +1,11 @@
 package pingpong.server.tests
 
-import pingpong.protocol.repo_backend.{GetSandboxGlobsRequest, GetSandboxGlobsResponse, RepoBackend, Revision}
+import pingpong.protocol.repo_backend.{
+  GetSandboxGlobsRequest,
+  GetSandboxGlobsResponse,
+  RepoBackend,
+  Revision
+}
 import pingpong.server.Server
 
 import com.twitter.conversions.time._
@@ -14,9 +19,9 @@ class ServerFeatureTest extends FeatureTest {
   lazy val client = server.thriftClient[Server](clientId = "client123")
 
   test("Server#return an error message") {
-    Await.result(client.getSandboxGlobs(GetSandboxGlobsRequest(
-      Some(Revision(Some("???"))),
-      Some(Seq()))),
-    2.seconds) should equal(GetSandboxGlobsResponse.Error(Some("huh")))
+    Await.result(
+      client.getSandboxGlobs(
+        GetSandboxGlobsRequest(Some(Revision(Some("???"))), Some(Seq()))),
+      2.seconds) should equal(GetSandboxGlobsResponse.Error(Some("huh")))
   }
 }
