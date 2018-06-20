@@ -1,5 +1,1 @@
-java_thrift_library(
-  sources=['*.thrift'],
-  language='scala',
-  fatal_warnings=False,
-)
+custom_scrooge_java_thrift_library()

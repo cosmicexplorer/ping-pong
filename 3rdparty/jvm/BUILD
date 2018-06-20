@@ -1,3 +1,10 @@
+jar_library(
+  name='slf4j-impl',
+  jars=[
+    jar(org='ch.qos.logback', name='logback-classic', rev='1.2.3'),
+  ],
+)
+
 GOOGLE_GUICE_REV = '4.2.0'
 
 jar_library(
@@ -22,9 +29,6 @@ jar_library(
   name='finatra-thrift',
   jars=[
     scala_jar(org='com.twitter', name='finatra-thrift', rev=TWITTER_JVM_REV),
-  ],
-  dependencies=[
-    ':libthrift-0.11.0',
   ],
 )
 
@@ -53,8 +57,8 @@ jar_library(
               classifier='tests'),
   ],
   dependencies=[
-    ':libthrift-0.11.0',
     ':mockito',
+    ':slf4j-impl',
   ],
   scope='compile test',
 )
@@ -64,28 +68,6 @@ jar_library(
   jars=[
     scala_jar(org='com.twitter', name='scrooge-core', rev=TWITTER_JVM_REV),
   ],
-)
-
-jar_library(
-  name='scrooge-generator',
-  jars=[
-    scala_jar(org='com.twitter', name='scrooge-generator', rev=TWITTER_JVM_REV),
-  ],
-)
-
-jar_library(
-  name='scrooge-linter',
-  jars=[
-    scala_jar(org='com.twitter', name='scrooge-linter', rev=TWITTER_JVM_REV),
-  ],
-)
-
-jar_library(
-  name='libthrift-0.11.0',
-  jars=[
-    jar(org='org.apache.thrift', name='libthrift', rev='0.11.0'),
-  ],
-  scope='compile test',
 )
 
 

@@ -4,3 +4,4 @@
 /.cache/
 .dir-locals.el
 /dist/
+*.pyc
