@@ -34,6 +34,9 @@ class CustomScroogeBootstrap(Subsystem, InjectablesMixin):
     for spec_key, jar_name in self._INJECTABLES_SPECS.items():
       spec = self.injectables_spec_for_key(spec_key)
       target_address = Address.parse(spec)
+      # FIXME: this is never going to be true if we set thrift-defaults.compiler to
+      # 'custom-scrooge', because the address is synthesized already for the purposes of the normal
+      # scrooge task.
       if build_graph.contains_address(target_address):
         if not build_graph.get_target(target_address).is_synthetic:
           raise build_graph.ManualSyntheticTargetError(target_address)
