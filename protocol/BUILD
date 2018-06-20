@@ -2,10 +2,4 @@ java_thrift_library(
   sources=['*.thrift'],
   language='scala',
   fatal_warnings=False,
-  dependencies=[
-    '3rdparty/jvm:finagle-thrift',
-  ],
-  exports=[
-    '3rdparty/jvm:finagle-thrift',
-  ],
 )

@@ -3,3 +3,4 @@
 /.pids/
 /.cache/
 .dir-locals.el
+/dist/

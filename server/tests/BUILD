@@ -1,8 +1,9 @@
 junit_tests(
   dependencies=[
+    '3rdparty/jvm:guice-test-jars',
     '3rdparty/jvm:finatra-thrift',
-    '3rdparty/jvm:inject-server',
-    '3rdparty/jvm:inject-thrift-client',
+    '3rdparty/jvm:finatra-thrift-test-jars',
+    '3rdparty/jvm:scalatest',
     'protocol',
     'server',
   ],
