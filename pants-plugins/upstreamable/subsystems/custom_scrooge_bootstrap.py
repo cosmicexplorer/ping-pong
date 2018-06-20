@@ -24,10 +24,6 @@ class CustomScroogeBootstrap(Subsystem, InjectablesMixin):
   def _tool_version(self):
     return self.get_options().tool_version
 
-  @classmethod
-  def _make_scrooge_scala_jar_dep(cls, name, version):
-    return ScalaJarDependency(org='com.twitter', name=name, version=version)
-
   _INJECTABLES_SPECS = {
     'scrooge-core': 'scrooge-core',
     'scrooge-gen': 'scrooge-generator',
