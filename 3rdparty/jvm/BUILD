@@ -19,7 +19,6 @@ jar_library(
   jars=[
     jar(org='com.google.inject.extensions', name='guice-testlib', rev=GOOGLE_GUICE_REV),
   ],
-  scope='compile test',
 )
 
 
@@ -60,7 +59,6 @@ jar_library(
     ':mockito',
     ':slf4j-impl',
   ],
-  scope='compile test',
 )
 
 
@@ -70,7 +68,6 @@ jar_library(
     jar(org='org.mockito', name='mockito-core', rev='1.9.5'),
     jar(org='org.mockito', name='mockito-core', rev='1.9.5', classifier='test'),
   ],
-  scope='compile test',
 )
 
 jar_library(
@@ -79,5 +76,4 @@ jar_library(
     scala_jar(org='org.scalatest', name='scalatest', rev='3.0.5'),
     scala_jar(org='org.scalatest', name='scalatest', rev='3.0.5', classifier='test'),
   ],
-  scope='compile test',
 )
