@@ -21,8 +21,7 @@ TWITTER_JVM_REV = '18.6.0'
 jar_library(
   name='finatra-thrift',
   jars=[
-    scala_jar(org='com.twitter', name='finatra-thrift', rev=TWITTER_JVM_REV,
-              excludes=[exclude(org='org.apache.thrift', name='libthrift')]),
+    scala_jar(org='com.twitter', name='finatra-thrift', rev=TWITTER_JVM_REV),
   ],
   dependencies=[
     ':libthrift-0.11.0',
@@ -33,65 +32,25 @@ jar_library(
   name='finatra-thrift-test-jars',
   jars=[
     scala_jar(org='com.twitter', name='finatra-thrift', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='inject-server', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='finatra-jackson', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='finatra-utils', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='inject-app', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='inject-core', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='inject-modules', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='inject-request-scope', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='inject-server', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
     scala_jar(org='com.twitter', name='inject-utils', rev=TWITTER_JVM_REV,
-              classifier='tests',
-              excludes=[
-                exclude(org='org.apache.thrift', name='libthrift'),
-                exclude(org='org.mockito'),
-              ]),
+              classifier='tests'),
   ],
   dependencies=[
     ':libthrift-0.11.0',
@@ -103,40 +62,21 @@ jar_library(
 jar_library(
   name='scrooge-core',
   jars=[
-    scala_jar(org='com.twitter', name='scrooge-core', rev=TWITTER_JVM_REV,
-              excludes=[exclude(org='org.apache.thrift', name='libthrift')]),
-  ],
-  dependencies=[
-    ':libthrift-0.6.1',
+    scala_jar(org='com.twitter', name='scrooge-core', rev=TWITTER_JVM_REV),
   ],
 )
 
 jar_library(
   name='scrooge-generator',
   jars=[
-    scala_jar(org='com.twitter', name='scrooge-generator', rev=TWITTER_JVM_REV,
-              excludes=[exclude(org='org.apache.thrift', name='libthrift')]),
-  ],
-  dependencies=[
-    ':libthrift-0.6.1',
+    scala_jar(org='com.twitter', name='scrooge-generator', rev=TWITTER_JVM_REV),
   ],
 )
 
 jar_library(
   name='scrooge-linter',
   jars=[
-    scala_jar(org='com.twitter', name='scrooge-linter', rev=TWITTER_JVM_REV,
-              excludes=[exclude(org='org.apache.thrift', name='libthrift')]),
-  ],
-  dependencies=[
-    ':libthrift-0.6.1',
-  ],
-)
-
-jar_library(
-  name='libthrift-0.6.1',
-  jars=[
-    jar(org='org.apache.thrift', name='libthrift', rev='0.6.1'),
+    scala_jar(org='com.twitter', name='scrooge-linter', rev=TWITTER_JVM_REV),
   ],
 )
 
@@ -147,6 +87,7 @@ jar_library(
   ],
   scope='compile test',
 )
+
 
 SCALA_REV = '2.12.6'
 

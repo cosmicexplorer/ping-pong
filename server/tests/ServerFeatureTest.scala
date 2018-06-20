@@ -17,12 +17,14 @@ import com.twitter.util.{Await, Future}
 class ServerFeatureTest extends FeatureTest {
   override val server = new EmbeddedThriftServer(new Server)
 
-  lazy val client = server.thriftClient[RepoBackend[Future]](clientId = "client123")
+  lazy val client =
+    server.thriftClient[RepoBackend[Future]](clientId = "client123")
 
   test("Server#return an error message") {
     Await.result(
       client.getSandboxGlobs(
         GetSandboxGlobsRequest(Some(Revision(Some("???"))), Some(Seq()))),
-      2.seconds) should equal(GetSandboxGlobsResponse.Error(RepoBackendError(Some("huh"))))
+      2.seconds) should equal(
+      GetSandboxGlobsResponse.Error(RepoBackendError(Some("huh"))))
   }
 }
