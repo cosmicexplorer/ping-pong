@@ -1,3 +1,0 @@
-[submodule "pants-ensime-plugin"]
-	path = pants-plugins/ensime
-	url = git@github.com:cosmicexplorer/pants-ensime-plugin.git
