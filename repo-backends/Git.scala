@@ -1,10 +1,9 @@
 package pingpong.repo_backends
 
-import pingpong.protocol.repo_backend.{Revision, PathGlob, GetSandboxGlobsRequest, GetSandboxGlobsResponse, RepoBackend, RepoLocation, Sandbox, RepoFile, SandboxWithExpandedGlobs, RepoBackendError}
+import pingpong.io.{Directory, File}
+import pingpong.protocol.repo_backend._
 
 import com.twitter.util.{Return, Throw, Try, Future}
-
-import java.io.File
 
 case class GitRepoError(message: String) extends Exception(message)
 
@@ -42,22 +41,17 @@ object GitRevision {
 
 sealed trait RepoRoot
 
-case class LocalRepoRoot(rootDir: File) extends RepoRoot
+case class LocalRepoRoot(rootDir: Directory) extends RepoRoot
 
 object LocalRepoRoot {
-  def apply(dirPath: String): Try[LocalRepoRoot] = {
-    val path = new File(dirPath)
-    if (path.isAbsolute() && path.isDirectory()) {
-      Return(LocalRepoRoot(path))
-    } else {
-      Throw(GitRepoError(
-        s"invalid local repo root ${path}: must be an absolute path to an existing directory"))
-    }
+  def apply(dirPath: String): Future[LocalRepoRoot] = {
+    Directory.fromExistingPath(dirPath)
+      .map(LocalRepoRoot(_))
   }
 }
 
 object RepoRoot {
-  def apply(location: RepoLocation): Try[RepoRoot] = {
+  def apply(location: RepoLocation): Future[RepoRoot] = {
     location.backendLocationSpec
       .map(LocalRepoRoot(_))
       .head
@@ -67,12 +61,11 @@ object RepoRoot {
 case class GitGlobsRequest(revision: GitRevision, globs: Seq[GitGlob], location: RepoRoot)
 
 object GitGlobsRequest {
-  def apply(request: GetSandboxGlobsRequest): Try[GitGlobsRequest] = {
+  def apply(request: GetSandboxGlobsRequest): Future[GitGlobsRequest] = {
     val revision = request.revision
       .map(GitRevision(_))
       .head
     val globs = request.pathGlobs
-      .filter(!_.isEmpty)
       .map(pg => Try(pg.map(GitGlob(_).get)))
       .head
     val repoLocation = request.repoLocation
@@ -80,17 +73,25 @@ object GitGlobsRequest {
       .head
 
     // TODO: make it easier to join `Try`s (or `Future`s) -- see /util/TryUtils.scala!
-    revision.andThen(rev => globs.andThen(pg => repoLocation.map((rev, pg, _))))
+    Future.const(revision)
+      .flatMap(rev => Future.const(globs)
+        .flatMap(pg => repoLocation.map((rev, pg, _))))
       .map { case (rev, pg, loc) => GitGlobsRequest(rev, pg, loc) }
   }
 }
 
-case class GitSandbox(sandboxRoot: File) {
-  def asThrift = Sandbox(Some(sandboxRoot.getPath()))
+case class GitSandbox(sandboxRoot: Directory) {
+  def asThrift = Sandbox(Some(sandboxRoot.path))
 }
 
+// object GitSandbox {
+//   def apply(location: RepoRoot): Future[GitSandbox] = {
+
+//   }
+// }
+
 case class SandboxFile(relativePath: File) {
-  def asThrift = RepoFile(Some(relativePath.getPath()))
+  def asThrift = RepoFile(Some(relativePath.path))
 }
 
 case class SandboxWithExpansions(sandbox: GitSandbox, expandedGlobs: Seq[SandboxFile]) {
