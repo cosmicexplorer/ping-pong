@@ -1,6 +1,6 @@
 #@namespace scala pingpong.protocol.repo_backend
 
-struct File {
+struct RepoFile {
   # Path to a file relative to the repo root.
   1: optional string file_relative_path;
 }
@@ -14,7 +14,7 @@ struct LineRangeForFile {
 }
 
 struct FileWithRange {
-  1: optional File file;
+  1: optional RepoFile file;
   # If not provided, the whole file is assumed.
   2: optional LineRangeForFile line_range_in_file;
 }
@@ -71,20 +71,26 @@ union HunkGlob {
 
 typedef list<HunkGlob> HunkGlobs
 
+struct RepoLocation {
+  # E.g. a local or remote git repo.
+  1: optional string backend_location_spec;
+}
+
 struct GetSandboxGlobsRequest {
   1: optional Revision revision;
   2: optional PathGlobs path_globs;
+  3: optional RepoLocation repo_location;
 }
 
 struct Sandbox {
   1: optional string sandbox_root_absolute_path;
 }
 
-typedef list<File> Fileset
+typedef list<RepoFile> RepoFileset
 
 struct SandboxWithExpandedGlobs {
   1: optional Sandbox sandbox;
-  2: optional Fileset fileset;
+  2: optional RepoFileset expanded_globs;
 }
 
 exception RepoBackendError {

@@ -1,4 +1,4 @@
-#@namespace scala pingpong.protocol.entities
+#@namespace scala pingpong.protocol.user
 
 # A 64-bit signed integer is uniformly used in this file for a key into some abstract backend data
 # store.

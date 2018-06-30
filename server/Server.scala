@@ -3,7 +3,7 @@ package pingpong.server
 import pingpong.protocol.repo_backend.{
   GetSandboxGlobsResponse,
   RepoBackend,
-  RepoBackendError
+  RepoBackendError,
 }
 
 import com.twitter.finatra.thrift._

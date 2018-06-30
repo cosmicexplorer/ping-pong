@@ -82,3 +82,10 @@ jar_library(
     scala_jar(org='org.scalatest', name='scalatest', rev='3.0.5', classifier='test'),
   ],
 )
+
+jar_library(
+  name='twitter-util',
+  jars=[
+    scala_jar(org='com.twitter', name='util-core', rev=TWITTER_JVM_REV),
+  ]
+)

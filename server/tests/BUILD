@@ -4,7 +4,7 @@ junit_tests(
     '3rdparty/jvm:finatra-thrift',
     '3rdparty/jvm:finatra-thrift-test-jars',
     '3rdparty/jvm:scalatest',
-    'protocol',
+    'protocol:repo_backend',
     'server',
   ],
 )
