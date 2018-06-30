@@ -6,5 +6,4 @@ python_library(
     'pants-plugins/upstreamable/targets',
     'pants-plugins/upstreamable/tasks',
   ],
-  global_subsystems=True,
 )

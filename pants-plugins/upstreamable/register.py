@@ -6,6 +6,7 @@ from pants.goal.task_registrar import TaskRegistrar as task
 
 from upstreamable.subsystems.custom_scrooge_bootstrap import CustomScroogeBootstrap
 from upstreamable.targets.custom_scala_dependencies import CustomScalaDependencies
+from upstreamable.targets.custom_scrooge_dependencies import CustomScroogeDependencies
 from upstreamable.targets.custom_scrooge_java_thrift_library import CustomScroogeJavaThriftLibrary
 from upstreamable.tasks.custom_scrooge import CustomScrooge
 
@@ -17,12 +18,9 @@ def build_file_aliases():
     },
     context_aware_object_factories={
       CustomScalaDependencies.alias(): CustomScalaDependencies,
+      CustomScroogeDependencies.alias(): CustomScroogeDependencies,
     },
   )
-
-
-def global_subsystems():
-  return {CustomScroogeBootstrap}
 
 
 def register_goals():

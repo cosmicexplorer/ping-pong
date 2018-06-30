@@ -6,7 +6,6 @@ from pants.contrib.scrooge.tasks.scrooge_gen import ScroogeGen
 from pants.util.memo import memoized_property
 from pants.util.objects import Exactly
 
-from upstreamable.subsystems.custom_scrooge_bootstrap import CustomScroogeBootstrap
 from upstreamable.targets.custom_scrooge_java_thrift_library import CustomScroogeJavaThriftLibrary
 
 

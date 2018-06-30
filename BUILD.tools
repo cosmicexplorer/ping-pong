@@ -1,1 +1,2 @@
 custom_scala_dependencies(version='2.12.6')
+custom_scrooge_dependencies(version='18.6.0')
