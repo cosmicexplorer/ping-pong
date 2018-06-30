@@ -72,10 +72,7 @@ object GitGlobsRequest {
       .map(RepoRoot(_))
       .head
 
-    // TODO: make it easier to join `Try`s (or `Future`s) -- see /util/TryUtils.scala!
-    Future.const(revision)
-      .flatMap(rev => Future.const(globs)
-        .flatMap(pg => repoLocation.map((rev, pg, _))))
+    Future.join(Future.const(revision), Future.const(globs), repoLocation)
       .map { case (rev, pg, loc) => GitGlobsRequest(rev, pg, loc) }
   }
 }
