@@ -37,7 +37,7 @@ jar_library(
     # FIXME: we can't get the transitive closure of all the deps for test jars (this is a known
     # issue with classifiers in general, see
     # https://twitter.github.io/finatra/index.html#test-dependencies). This is almost definitely
-    # something that could/should be added to coursier, because I think it would require traveresing
+    # something that could/should be added to coursier, because I think it would require traversing
     # the dependency set of the test jars, and we probably don't want to do that ourselves.
     scala_jar(org='com.twitter', name='finatra-thrift', rev=TWITTER_JVM_REV,
               classifier='tests'),
