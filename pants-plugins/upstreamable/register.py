@@ -26,5 +26,5 @@ def build_file_aliases():
 
 def register_goals():
   task(name='custom-scrooge', action=CustomScrooge).install('gen')
-  task(name='bootstrap-ensime-gen', action=BootstrapEnsimeGen).install('bootstrap-ensime-gen')
+  task(name='bootstrap-ensime-gen', action=BootstrapEnsimeGen).install('bootstrap')
   task(name='ensime-gen', action=EnsimeGen).install('ensime')

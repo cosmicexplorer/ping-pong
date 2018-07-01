@@ -7,8 +7,6 @@ import DefaultJsonProtocol._
 object EnsimeFileGen extends App {
   // val allStdin = scala.io.Source.stdin.mkString
 
-  asdfjaskl;dgja
-
   // println(s"hello, world:\n${allStdin}")
 
   println("hey!")

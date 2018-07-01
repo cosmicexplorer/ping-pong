@@ -94,7 +94,7 @@ class BootstrapEnsimeGen(Task):
       ) as workunit:
 
         try:
-          process = subprocess.Popen(
+          subprocess.check_call(
             cmd,
             cwd=get_buildroot(),
             stdout=workunit.output('stdout'),
@@ -103,17 +103,15 @@ class BootstrapEnsimeGen(Task):
         except OSError as e:
           workunit.set_outcome(WorkUnit.FAILURE)
           raise self.BootstrapEnsimeError(
-            "Error invoking pants for the ensime-gen binary with command {} from target {}."
-            .format(cmd, ensime_binary_target_spec),
+            "Error invoking pants for the ensime-gen binary with command {} from target {}: {}"
+            .format(cmd, ensime_binary_target_spec, e),
             e)
-
-        rc = process.wait()
-        if rc != 0:
+        except subprocess.CalledProcessError as e:
           workunit.set_outcome(WorkUnit.FAILURE)
           raise self.BootstrapEnsimeError(
             "Error generating the ensime-gen binary with command {} from target {}. "
             "Exit code was: {}."
-            .format(cmd, ensime_binary_target_spec, rc))
+            .format(cmd, ensime_binary_target_spec, e.returncode))
 
       dist_jar = self._collect_dist_jar(tmpdir)
       jar_fname = os.path.basename(dist_jar)

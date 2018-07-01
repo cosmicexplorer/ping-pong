@@ -20,7 +20,9 @@ from pants.util.objects import SubclassesOf
 from upstreamable.tasks.bootstrap_ensime_gen import EnsimeGenJar
 
 
-class EnsimeGen(ExportTask, JvmToolTaskMixin, ConsoleTask):
+class EnsimeGen(ExportTask, JvmToolTaskMixin,
+                # ConsoleTask,
+):
 
   @classmethod
   def prepare(cls, options, round_manager):
@@ -31,23 +33,25 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin, ConsoleTask):
   def subsystem_dependencies(cls):
     return super(EnsimeGen, cls).subsystem_dependencies() + (DistributionLocator,)
 
-  def console_output(self, targets):
+  def execute(self):
 
-    ensime_gen_jar = self.context.products.get_data(EnsimeGenJar)
-    ensime_gen_classpath = [ensime_gen_jar.tool_jar_path]
+    with self.context.new_workunit(
+        name='ensime-gen-invoke',
+        labels=[WorkUnitLabel.TOOL],
+    ) as workunit:
 
-    # java_executor = SubprocessExecutor()
+      ensime_gen_jar = self.context.products.get_data(EnsimeGenJar)
+      ensime_gen_classpath = [ensime_gen_jar.tool_jar_path]
 
-    execute_java(ensime_gen_classpath,
-                 'pingpong.ensime.EnsimeFileGen',
-                 # workunit_name='ensime-gen',
-                 workunit_labels=[WorkUnitLabel.TOOL],
-                 # executor=java_executor,
-                 distribution=DistributionLocator.cached(),
-                 # stdin=None,
-    )
+      execute_java(ensime_gen_classpath,
+                   'pingpong.ensime.EnsimeFileGen',
+                   workunit_name='ensime-gen',
+                   workunit_labels=[WorkUnitLabel.TOOL],
+                   distribution=DistributionLocator.cached(),
+                   # stdin='wow',
+      )
 
     # jvm_targets = self.context.targets(self.source_target_constraint.satisfied_by)
-    exported_targets_map = self.generate_targets_map(targets)
+    # exported_targets_map = self.generate_targets_map(targets)
 
-    return json.dumps(exported_targets_map, indent=4, separators=(',', ': ')).splitlines()
+    # return json.dumps(exported_targets_map, indent=4, separators=(',', ': ')).splitlines()
