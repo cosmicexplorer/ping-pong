@@ -1,0 +1,9 @@
+[GLOBAL]
+level: debug
+print_exception_stacktrace: True
+lock: False
+enable_pantsd: False
+kill_nailguns: True
+
+[DEFAULT]
+execution_strategy: subprocess

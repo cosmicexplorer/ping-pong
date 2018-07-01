@@ -3,8 +3,6 @@ from __future__ import (absolute_import, division, generators, nested_scopes,
 
 from pants.backend.codegen.thrift.java.java_thrift_library import JavaThriftLibrary
 
-from upstreamable.subsystems.custom_scrooge_bootstrap import CustomScroogeBootstrap
-
 
 class CustomScroogeJavaThriftLibrary(JavaThriftLibrary):
 
@@ -17,7 +15,3 @@ class CustomScroogeJavaThriftLibrary(JavaThriftLibrary):
   @classmethod
   def alias(cls):
     return 'custom_scrooge_java_thrift_library'
-
-  @classmethod
-  def subsystems(cls):
-    return super(CustomScroogeJavaThriftLibrary, cls).subsystems() + (CustomScroogeBootstrap,)

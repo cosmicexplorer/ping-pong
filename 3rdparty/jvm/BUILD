@@ -89,3 +89,10 @@ jar_library(
     scala_jar(org='com.twitter', name='util-core', rev=TWITTER_JVM_REV),
   ]
 )
+
+jar_library(
+  name='ensime-api',
+  jars=[
+    scala_jar(org='org.ensime', name='api', rev='2.0.1'),
+  ],
+)
