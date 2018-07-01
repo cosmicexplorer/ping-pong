@@ -2,6 +2,7 @@ package pingpong.ensime
 
 import pingpong.ensime.PantsExportProtocol._
 
+import ammonite.ops.Path
 import org.ensime.api._
 import org.ensime.config.EnsimeConfigProtocol
 import org.ensime.sexp.SexpPrettyPrinter
@@ -13,6 +14,8 @@ import java.io.File
 object EnsimeFileGen extends App {
   def makeRawFile(path: String) = RawFile(new File(path).toPath)
 
+  def validateEnsimeConfig(cfg: EnsimeConfig) = EnsimeConfigProtocol.validated(cfg)
+
   val Array(buildRoot, scalaVersion, ensimeCacheDir) = args
 
   val allStdin = scala.io.Source.stdin.mkString
@@ -21,8 +24,8 @@ object EnsimeFileGen extends App {
   val defaultJvmPlatform = pantsExportParsed.jvmPlatforms.defaultPlatform
   val javaHome = pantsExportParsed.preferredJvmDistributions(defaultJvmPlatform).strict
 
-  val ensimeConfig = EnsimeConfigProtocol.validated(EnsimeConfig(
-    name = "???",
+  val ensimeConfig = validateEnsimeConfig(EnsimeConfig(
+    name = Path(buildRoot).last,
     rootDir = makeRawFile(buildRoot),
     cacheDir = makeRawFile(ensimeCacheDir),
     scalaVersion = scalaVersion,

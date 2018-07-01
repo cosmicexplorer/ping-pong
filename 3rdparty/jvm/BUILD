@@ -123,3 +123,10 @@ jar_library(
     scala_jar(org='io.spray', name='spray-json', rev='1.3.4'),
   ]
 )
+
+jar_library(
+  name='ammonite-ops',
+  jars=[
+    scala_jar(org='com.lihaoyi', name='ammonite-ops', rev='1.1.2'),
+  ],
+)
