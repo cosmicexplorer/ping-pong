@@ -58,6 +58,19 @@ class BootstrapEnsimeGen(Task):
     else:
       return None
 
+  _CLEAN_ENV = [
+    'PANTS_ENABLE_PANTSD',
+    'PANTS_ENTRYPOINT',
+  ]
+
+  def _get_subproc_env(self):
+    env = os.environ.copy()
+
+    for env_var in self._CLEAN_ENV:
+      env.pop(env_var, None)
+
+    return env
+
   def _build_binary(self, ensime_binary_target_spec):
 
     pants_config_files_args = ['"{}"'.format(f) for f in self._bootstrap_config_files]
@@ -67,10 +80,11 @@ class BootstrapEnsimeGen(Task):
         './pants',
         '--pants-config-files=[{}]'.format(','.join(pants_config_files_args)),
         '--pants-distdir={}'.format(tmpdir),
-        '--bootstrap-ensime-gen-skip',
         'binary',
         ensime_binary_target_spec,
       ]
+
+      env = self._get_subproc_env()
 
       with self.context.new_workunit(
           name='bootstrap-ensime-gen-subproc',
@@ -84,7 +98,8 @@ class BootstrapEnsimeGen(Task):
             cmd,
             cwd=get_buildroot(),
             stdout=workunit.output('stdout'),
-            stderr=workunit.output('stderr'))
+            stderr=workunit.output('stderr'),
+            env=env)
         except OSError as e:
           workunit.set_outcome(WorkUnit.FAILURE)
           raise self.BootstrapEnsimeError(

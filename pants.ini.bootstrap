@@ -7,3 +7,6 @@ kill_nailguns: True
 
 [DEFAULT]
 execution_strategy: subprocess
+
+[bootstrap-ensime-gen]
+skip: True
