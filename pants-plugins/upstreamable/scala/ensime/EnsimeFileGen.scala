@@ -3,15 +3,16 @@ package pingpong.ensime
 import pingpong.ensime.PantsExportProtocol._
 
 import org.ensime.api._
-import org.ensime.config.EnsimeConfigProtocol._
-import org.ensime.config.richconfig._
-import org.ensime.sexp._
-import org.ensime.sexp.SexpFormat._
+import org.ensime.config.EnsimeConfigProtocol
+import org.ensime.sexp.SexpPrettyPrinter
+import org.ensime.sexp.SexpWriter.ops._
 import spray.json._
 
 import java.io.File
 
 object EnsimeFileGen extends App {
+  def makeRawFile(path: String) = RawFile(new File(path).toPath)
+
   val Array(buildRoot, scalaVersion, ensimeCacheDir) = args
 
   val allStdin = scala.io.Source.stdin.mkString
@@ -20,20 +21,19 @@ object EnsimeFileGen extends App {
   val defaultJvmPlatform = pantsExportParsed.jvmPlatforms.defaultPlatform
   val javaHome = pantsExportParsed.preferredJvmDistributions(defaultJvmPlatform).strict
 
-  val ensimeConfig = EnsimeConfig(
+  val ensimeConfig = EnsimeConfigProtocol.validated(EnsimeConfig(
     name = "???",
-    rootDir = RawFile(new File(buildRoot).toPath),
-    cacheDir = RawFile(new File(ensimeCacheDir).toPath),
+    rootDir = makeRawFile(buildRoot),
+    cacheDir = makeRawFile(ensimeCacheDir),
     scalaVersion = scalaVersion,
-    javaHome = RawFile(new File(javaHome).toPath),
+    javaHome = makeRawFile(javaHome),
     javaSources = List(),
     projects = List(),
-    compilerArgs = List(),
-  )
+  ))
 
-  val ensimeSexp = SexpWriter(ensimeConfig)
+  val ensimeSexp = ensimeConfig.toSexp
 
-  println(s"hello, world:\n${ensimeSexp}")
+  println(s"hello, world:\n${SexpPrettyPrinter(ensimeSexp)}")
 
   println("hey!")
 }

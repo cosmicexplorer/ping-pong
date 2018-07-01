@@ -95,12 +95,25 @@ ENSIME_REV = '3.0.0-SNAPSHOT'
 jar_library(
   name='ensime',
   jars=[
-    scala_jar(org='org.ensime', name='api', rev=ENSIME_REV),
-    scala_jar(org='org.ensime', name='core', rev=ENSIME_REV),
-    scala_jar(org='org.ensime', name='s-express', rev=ENSIME_REV),
+    scala_jar(org='org.ensime', name='api', rev=ENSIME_REV,
+              intransitive=True),
+    scala_jar(org='org.ensime', name='core', rev=ENSIME_REV,
+              intransitive=True),
+    scala_jar(org='org.ensime', name='s-express', rev=ENSIME_REV,
+              intransitive=True),
+    scala_jar(org='org.ensime', name='util', rev=ENSIME_REV,
+              intransitive=True),
+    # We pull everything in intransitively because the version of spray-json used is different than
+    # the one we want, but we then need to provide scalaz-ioeffect for the 'api' jar, and others for
+    # others.
+    scala_jar(org='com.chuusai', name='shapeless', rev='2.3.3'),
+    scala_jar(org='com.lihaoyi', name='fastparse', rev='0.4.4'),
+    scala_jar(org='org.scalaz', name='scalaz-ioeffect', rev='2.5.0'),
   ],
   dependencies=[
+    # Just so this gets invalidated if the local sbt dist does too.
     '3rdparty/jvm/vendor/ensime-server',
+    ':spray-json',
   ],
 )
 
