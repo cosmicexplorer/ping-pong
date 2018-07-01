@@ -4,6 +4,7 @@ lock: False
 enable_pantsd: False
 kill_nailguns: True
 
+# TODO: remove if we can ensure that the jar is reloaded every time the code is changed!
 [DEFAULT]
 execution_strategy: subprocess
 
