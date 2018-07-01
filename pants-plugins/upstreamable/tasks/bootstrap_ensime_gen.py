@@ -112,7 +112,8 @@ class BootstrapEnsimeGen(Task):
           raise self.BootstrapEnsimeError(
             "Error generating the ensime-gen binary with command {} from target {}. "
             "Exit code was: {}."
-            .format(cmd, ensime_binary_target_spec, e.returncode))
+            .format(cmd, ensime_binary_target_spec, e.returncode),
+            e)
 
       dist_jar = self._collect_dist_jar(tmpdir)
       jar_fname = os.path.basename(dist_jar)

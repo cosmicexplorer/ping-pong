@@ -90,10 +90,17 @@ jar_library(
   ]
 )
 
+ENSIME_REV = '3.0.0-SNAPSHOT'
+
 jar_library(
-  name='ensime-api',
+  name='ensime',
   jars=[
-    scala_jar(org='org.ensime', name='api', rev='2.0.1'),
+    scala_jar(org='org.ensime', name='api', rev=ENSIME_REV),
+    scala_jar(org='org.ensime', name='core', rev=ENSIME_REV),
+    scala_jar(org='org.ensime', name='s-express', rev=ENSIME_REV),
+  ],
+  dependencies=[
+    '3rdparty/jvm/vendor/ensime-server',
   ],
 )
 

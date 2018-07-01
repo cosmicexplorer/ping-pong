@@ -4,7 +4,7 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
 import json
 import os
 
-from pants.base.build_environment import get_buildroot
+from pants.base.build_environment import get_buildroot, get_pants_cachedir
 from pants.backend.jvm.subsystems.scala_platform import ScalaPlatform
 from pants.backend.jvm.tasks.jvm_tool_task_mixin import JvmToolTaskMixin
 from pants.backend.project_info.tasks.export import ExportTask
@@ -42,7 +42,7 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
     return super(EnsimeGen, cls).subsystem_dependencies() + (DistributionLocator, ScalaPlatform,)
 
   def _make_ensime_cache_dir(self):
-    bootstrap_dir = os.path.expanduser(self.get_options().pants_bootstrapdir)
+    bootstrap_dir = get_pants_cachedir()
     cache_dir = os.path.join(bootstrap_dir, 'ensime')
     safe_mkdir(cache_dir)
     return cache_dir

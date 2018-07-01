@@ -3,15 +3,19 @@ package pingpong.ensime
 import pingpong.ensime.PantsExportProtocol._
 
 import org.ensime.api._
+import org.ensime.config.EnsimeConfigProtocol._
+import org.ensime.config.richconfig._
+import org.ensime.sexp._
+import org.ensime.sexp.SexpFormat._
 import spray.json._
 
 import java.io.File
 
 object EnsimeFileGen extends App {
+  val Array(buildRoot, scalaVersion, ensimeCacheDir) = args
+
   val allStdin = scala.io.Source.stdin.mkString
   val pantsExportParsed = allStdin.parseJson.convertTo[PantsExport]
-
-  val Array(buildRoot, scalaVersion, ensimeCacheDir) = args
 
   val defaultJvmPlatform = pantsExportParsed.jvmPlatforms.defaultPlatform
   val javaHome = pantsExportParsed.preferredJvmDistributions(defaultJvmPlatform).strict
@@ -27,7 +31,9 @@ object EnsimeFileGen extends App {
     compilerArgs = List(),
   )
 
-  println(s"hello, world:\n${ensimeConfig}")
+  val ensimeSexp = SexpWriter(ensimeConfig)
+
+  println(s"hello, world:\n${ensimeSexp}")
 
   println("hey!")
 }
