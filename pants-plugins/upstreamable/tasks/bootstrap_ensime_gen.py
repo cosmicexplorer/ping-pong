@@ -57,10 +57,12 @@ class BootstrapEnsimeGen(Task):
 
   def _build_binary(self, ensime_binary_target_spec):
 
+    pants_config_files_args = ['"{}"'.format(f) for f in self._bootstrap_config_files]
+
     with temporary_dir() as tmpdir:
       cmd = [
         './pants',
-        '--pants-config-files=[{}]'.format(', '.join('"{}"'.format(f) for f in self._bootstrap_config_files)),
+        '--pants-config-files=[{}]'.format(', '.join(pants_config_files_args)),
         '--pants-distdir={}'.format(tmpdir),
         '--bootstrap-ensime-gen-skip',
         'binary',
