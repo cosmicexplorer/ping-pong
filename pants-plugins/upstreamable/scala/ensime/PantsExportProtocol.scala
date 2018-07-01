@@ -41,7 +41,7 @@ object PantsExportProtocol extends DefaultJsonProtocol {
   implicit val globsFormat: JsonFormat[Globs] = lazyFormat(jsonFormat(Globs, "exclude", "globs"))
   implicit val targetFormat = jsonFormat(
     Target,
-    "dependencies", "pants_target_type", "scope", "roots", "is_target_root", "excludes", "id",
+    "targets", "pants_target_type", "scope", "roots", "is_target_root", "excludes", "id",
     "globs", "libraries", "transitive", "is_code_gen", "platform", "is_synthetic")
   implicit val jvmPlatformFormat = jsonFormat(JvmPlatform, "source_level", "args", "target_level")
   implicit val jvmPlatformDictFormat = jsonFormat(JvmPlatformDict, "platforms", "default_platform")

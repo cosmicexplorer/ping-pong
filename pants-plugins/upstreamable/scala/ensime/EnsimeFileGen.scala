@@ -24,6 +24,14 @@ object EnsimeFileGen extends App {
   val defaultJvmPlatform = pantsExportParsed.jvmPlatforms.defaultPlatform
   val javaHome = pantsExportParsed.preferredJvmDistributions(defaultJvmPlatform).strict
 
+  // val projects = pantsExportParsed.targets.flatMap { case (id, target) => EnsimeProject(
+  //   id = EnsimeProjectId(project = id, config = "compile"),
+  //   depends = target.dependencies
+  //     .map(_.map(EnsimeProjectId(project = _, config = "compile")))
+  //     .getOrElse(Nil),
+  //   sources = target.globs.globs.map(makeGlobMatcher(_))
+  // )}
+
   val ensimeConfig = validateEnsimeConfig(EnsimeConfig(
     name = Path(buildRoot).last,
     rootDir = makeRawFile(buildRoot),
@@ -37,6 +45,10 @@ object EnsimeFileGen extends App {
   val ensimeSexp = ensimeConfig.toSexp
 
   println(s"hello, world:\n${SexpPrettyPrinter(ensimeSexp)}")
+
+  println(s"aaaaa:\n${allStdin}")
+
+  println(s"bbbbb!!!:\n${pantsExportParsed.toJson.prettyPrint}")
 
   println("hey!")
 }
