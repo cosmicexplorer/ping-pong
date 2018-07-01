@@ -97,20 +97,6 @@ class BootstrapEnsimeGen(Task):
       return
 
     ensime_binary_target_spec = self._binary_tool_target
-    # self.context.build_graph.inject_specs_closure([ensime_binary_target_spec])
-    # ensime_binary_target = self.context.build_graph.get_target_from_spec(ensime_binary_target_spec)
-
-    # raise Exception("ensime_binary_target_spec: {}, ensime_binary_target: {}"
-    #                 .format(ensime_binary_target_spec, ensime_binary_target))
-
-    # do_rebuild = True
-
-    # if built_jar:
-    #   with self.invalidated([ensime_binary_target]) as invalidation_check:
-    #     if not invalidation_check.invalid_vts:
-    #       do_rebuild = False
-
-    # if do_rebuild:
     self._build_binary(ensime_binary_target_spec)
     built_jar = self._collect_dist_jar(self.workdir)
 
