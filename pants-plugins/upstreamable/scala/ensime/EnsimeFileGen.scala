@@ -5,9 +5,9 @@ import spray.json._
 import DefaultJsonProtocol._
 
 object EnsimeFileGen extends App {
-  // val allStdin = scala.io.Source.stdin.mkString
+  val allStdin = scala.io.Source.stdin.mkString
 
-  // println(s"hello, world:\n${allStdin}")
+  println(s"hello, world:\n${allStdin}")
 
   println("hey!")
 }
