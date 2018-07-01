@@ -5,6 +5,7 @@ import glob
 import os
 import shutil
 
+from pants.base.build_environment import get_buildroot
 from pants.base.exceptions import TaskError
 from pants.base.workunit import WorkUnit, WorkUnitLabel
 from pants.task.task import Task
@@ -41,7 +42,9 @@ class BootstrapEnsimeGen(Task):
 
   @memoized_property
   def _bootstrap_config_files(self):
-    return self.get_options().pants_config_files + ['pants.ini.bootstrap']
+    return self.get_options().pants_config_files + [
+      os.path.join(get_buildroot(), 'pants.ini.bootstrap'),
+    ]
 
   class BootstrapEnsimeError(TaskError): pass
 
@@ -62,31 +65,40 @@ class BootstrapEnsimeGen(Task):
     with temporary_dir() as tmpdir:
       cmd = [
         './pants',
-        '--pants-config-files=[{}]'.format(', '.join(pants_config_files_args)),
+        '--pants-config-files=[{}]'.format(','.join(pants_config_files_args)),
         '--pants-distdir={}'.format(tmpdir),
         '--bootstrap-ensime-gen-skip',
         'binary',
         ensime_binary_target_spec,
       ]
 
-      env = os.environ.copy()
-
-      # TODO: replace space join with safe_shlex_join() when #5493 is merged!
       with self.context.new_workunit(
-          name='bootstrap-ensime-gen-subproc', cmd=' '.join(cmd), labels=[WorkUnitLabel.BOOTSTRAP],
+          name='bootstrap-ensime-gen-subproc',
+          labels=[WorkUnitLabel.BOOTSTRAP],
+          # TODO: replace space join with safe_shlex_join() when #5493 is merged!
+          cmd=' '.join(cmd),
       ) as workunit:
 
         try:
-          subprocess.check_call(cmd,
-                                stdout=workunit.output('stdout'),
-                                stderr=workunit.output('stderr'),
-                                env=env)
-        except (OSError, subprocess.CalledProcessError) as e:
+          process = subprocess.Popen(
+            cmd,
+            cwd=get_buildroot(),
+            stdout=workunit.output('stdout'),
+            stderr=workunit.output('stderr'))
+        except OSError as e:
           workunit.set_outcome(WorkUnit.FAILURE)
           raise self.BootstrapEnsimeError(
-            "Error bootstrapping ensime-gen jvm sources with command {} from target {}."
+            "Error invoking pants for the ensime-gen binary with command {} from target {}."
             .format(cmd, ensime_binary_target_spec),
             e)
+
+        rc = process.wait()
+        if rc != 0:
+          workunit.set_outcome(WorkUnit.FAILURE)
+          raise self.BootstrapEnsimeError(
+            "Error generating the ensime-gen binary with command {} from target {}. "
+            "Exit code was: {}."
+            .format(cmd, ensime_binary_target_spec, rc))
 
       dist_jar = self._collect_dist_jar(tmpdir)
       jar_fname = os.path.basename(dist_jar)
