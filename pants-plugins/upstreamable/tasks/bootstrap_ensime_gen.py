@@ -8,6 +8,7 @@ import shutil
 from pants.base.build_environment import get_buildroot
 from pants.base.exceptions import TaskError
 from pants.base.workunit import WorkUnit, WorkUnitLabel
+from pants.build_graph.address import Address
 from pants.task.task import Task
 from pants.option.custom_types import target_option
 from pants.util.collections import assert_single_element
@@ -124,7 +125,19 @@ class BootstrapEnsimeGen(Task):
       return
 
     ensime_binary_target_spec = self._binary_tool_target
-    self._build_binary(ensime_binary_target_spec)
+    ensime_binary_target_address = Address.parse(ensime_binary_target_spec)
+
+    # Scan everything under the target dir, then check whether the binary target has been
+    # invalidated. The default target dir is '', meaning scan all BUILD files -- but that's ok since
+    # this project is small.
+    ensime_scala_root = os.path.join(get_buildroot(), ensime_binary_target_address.spec_path)
+    new_build_graph = self.context.scan(ensime_scala_root)
+    ensime_binary_target = new_build_graph.get_target_from_spec(ensime_binary_target_spec)
+
+    with self.invalidated([ensime_binary_target], invalidate_dependents=True) as invalidation_check:
+      if invalidation_check.invalid_vts:
+        self._build_binary(ensime_binary_target_spec)
+
     built_jar = self._collect_dist_jar(self.workdir)
 
     self.context.products.register_data(EnsimeGenJar, EnsimeGenJar(built_jar))
