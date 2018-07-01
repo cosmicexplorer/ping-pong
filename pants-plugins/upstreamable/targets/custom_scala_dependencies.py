@@ -30,9 +30,6 @@ class CustomScalaDependencies(object):
   _INJECTABLES_SPECS = {
     'scalac': [InjectableScalaPlatformDep('scala-compiler', klass=JarDependency)],
     'scala-library': [InjectableScalaPlatformDep('scala-library', klass=JarDependency)],
-    'scala-repl': [
-      InjectableScalaPlatformDep('scala-repl'),
-      InjectableScalaPlatformDep('jline', klass=JarDependency)],
     'scala-runtime': [InjectableScalaPlatformDep('scala-runtime')],
   }
 
@@ -47,3 +44,8 @@ class CustomScalaDependencies(object):
     for name, deps in self._INJECTABLES_SPECS.items():
       # FIXME: do we need this deepcopy? it's done in managed_jar_dependencies.py but idk why
       self._create_jar_library_from_deps(name, copy.deepcopy(deps), version)
+
+    ammonite_repl_deps = [
+      JarDependency(org='com.lihaoyi', name='ammonite_{}'.format(version), rev='1.1.2'),
+    ]
+    self._create_jar_library('scala-repl', copy.deepcopy(ammonite_repl_deps))
