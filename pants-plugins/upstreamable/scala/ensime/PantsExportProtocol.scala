@@ -25,14 +25,12 @@ case class JvmPlatformDict(platforms: Map[String, JvmPlatform], defaultPlatform:
 
 case class PreferredJvmDistribution(strict: String, nonStrict: String)
 
-case class Library(defaultClasspath: Option[String])
-
 case class PantsExport(
   targets: Map[String, Target],
   jvmPlatforms: JvmPlatformDict,
   preferredJvmDistributions: Map[String, PreferredJvmDistribution],
   version: String,
-  libraries: Map[String, Library])
+  libraries: Map[String, Map[String, String]])
 
 object PantsExportProtocol extends DefaultJsonProtocol {
   implicit val sourceRootFormat = jsonFormat(SourceRoot, "source_root", "package_prefix")
@@ -43,7 +41,6 @@ object PantsExportProtocol extends DefaultJsonProtocol {
   implicit val jvmPlatformFormat = jsonFormat(JvmPlatform, "source_level", "args", "target_level")
   implicit val jvmPlatformDictFormat = jsonFormat(JvmPlatformDict, "platforms", "default_platform")
   implicit val preferredJvmDistFormat = jsonFormat(PreferredJvmDistribution, "strict", "non_strict")
-  implicit val libraryFormat = jsonFormat(Library, "default")
   implicit val pantsExportFormat = jsonFormat(
     PantsExport, "targets", "jvm_platforms", "preferred_jvm_distributions", "version", "libraries")
 }

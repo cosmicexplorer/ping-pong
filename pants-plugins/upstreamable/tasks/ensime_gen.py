@@ -15,7 +15,7 @@ from pants.java.executor import SubprocessExecutor
 from pants.java.util import execute_java
 from pants.option.custom_types import target_option
 from pants.util.collections import assert_single_element
-from pants.util.contextutil import temporary_dir
+from pants.util.contextutil import environment_as, temporary_dir
 from pants.util.dirutil import safe_mkdir
 from pants.util.memo import memoized_property
 from pants.util.objects import SubclassesOf
@@ -63,30 +63,35 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
       with open(export_outfile, 'wb') as outf:
         outf.write(export_result)
 
-      with self.context.new_workunit(
-          name='ensime-gen-invoke',
-          labels=[WorkUnitLabel.TOOL],
-      ) as workunit:
+      ensime_gen_jar = self.context.products.get_data(EnsimeGenJar)
+      ensime_gen_classpath = [ensime_gen_jar.tool_jar_path]
 
-        ensime_gen_jar = self.context.products.get_data(EnsimeGenJar)
-        ensime_gen_classpath = [ensime_gen_jar.tool_jar_path]
+      # TODO: use JvmPlatform for jvm options!
+      reported_scala_version = self.get_options().reported_scala_version
+      if not reported_scala_version:
+        reported_scala_version = ScalaPlatform.global_instance().version
 
-        # TODO: use JvmPlatform for jvm options!
-        reported_scala_version = self.get_options().reported_scala_version
-        if not reported_scala_version:
-          reported_scala_version = ScalaPlatform.global_instance().version
+      zinc_compile_dir = os.path.join(self.get_options().pants_workdir, 'compile/zinc')
 
-        argv = [
-          get_buildroot(),
-          reported_scala_version,
-          self._make_ensime_cache_dir(),
-        ]
+      argv = [
+        get_buildroot(),
+        reported_scala_version,
+        self._make_ensime_cache_dir(),
+        zinc_compile_dir,
+      ]
 
-        with open(export_outfile, 'rb') as inf:
+      # FIXME: use safe shlex methods here!
+      env = {
+        'PANTS_SCALAC_ARGS': ' '.join(self.get_options().scalac_options),
+        'PANTS_JAVAC_ARGS': ' '.join(self.get_options().javac_options),
+      }
+
+      with open(export_outfile, 'rb') as inf:
+        with environment_as(**env):
           execute_java(ensime_gen_classpath,
                        'pingpong.ensime.EnsimeFileGen',
                        args=argv,
-                       workunit_name='ensime-gen',
+                       workunit_name='ensime-gen-invoke',
                        workunit_labels=[WorkUnitLabel.TOOL],
                        distribution=DistributionLocator.cached(),
                        stdin=inf)
