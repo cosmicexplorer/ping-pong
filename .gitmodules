@@ -1,3 +1,3 @@
 [submodule "ensime-server"]
-	path = 3rdparty/jvm/vendor/ensime-server
-	url = git@github.com:ensime/ensime-server
+        path = 3rdparty/jvm/vendor/ensime-server
+        url = git@github.com:cosmicexplorer/ensime-server
