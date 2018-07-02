@@ -31,6 +31,12 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
 
     register('--reported-scala-version', type=str, default=None,
              help='Scala version to report to ensime. Defaults to the scala platform version.')
+    register('--scalac-options', type=list,
+             default=['-deprecation', '-unchecked', '-Xlint'],
+             help='Options to pass to scalac for ensime.')
+    register('--javac-options', type=list,
+             default=['-deprecation', '-Xlint:all', '-Xlint:-serial', '-Xlint:-path'],
+             help='Options to pass to javac for ensime.')
 
   @classmethod
   def prepare(cls, options, round_manager):
@@ -75,15 +81,6 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
           reported_scala_version,
           self._make_ensime_cache_dir(),
         ]
-
-        with open(export_outfile, 'rb') as inf:
-          execute_java(ensime_gen_classpath,
-                       'pingpong.ensime.EnsimeFileGen',
-                       args=argv,
-                       workunit_name='ensime-gen',
-                       workunit_labels=[WorkUnitLabel.TOOL],
-                       distribution=DistributionLocator.cached(),
-                       stdin=inf)
 
         with open(export_outfile, 'rb') as inf:
           execute_java(ensime_gen_classpath,
