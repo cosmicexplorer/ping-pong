@@ -19,6 +19,10 @@ from upstreamable.targets.sbt_dist import SbtDist
 class PublishLocalSbtDistributions(Task):
 
   @classmethod
+  def product_types(cls):
+    return ['sbt_local_publish']
+
+  @classmethod
   def subsystem_dependencies(cls):
     return super(PublishLocalSbtDistributions, cls).subsystem_dependencies() + (
       DistributionLocator,

@@ -4,8 +4,6 @@ import spray.json._
 
 case class SourceRoot(sourceRootPath: String, packagePrefix: String)
 
-case class Globs(exclude: Option[Seq[Globs]], globs: Seq[String])
-
 case class Target(
   dependencies: Option[Seq[String]],
   targetType: String,
@@ -14,7 +12,7 @@ case class Target(
   isTargetRoot: Boolean,
   excludes: Option[Seq[String]],
   id: String,
-  globs: Globs,
+  sources: Seq[String],
   libraries: Seq[String],
   transitive: Boolean,
   isCodeGen: Boolean,
@@ -38,11 +36,10 @@ case class PantsExport(
 
 object PantsExportProtocol extends DefaultJsonProtocol {
   implicit val sourceRootFormat = jsonFormat(SourceRoot, "source_root", "package_prefix")
-  implicit val globsFormat: JsonFormat[Globs] = lazyFormat(jsonFormat(Globs, "exclude", "globs"))
   implicit val targetFormat = jsonFormat(
     Target,
     "targets", "pants_target_type", "scope", "roots", "is_target_root", "excludes", "id",
-    "globs", "libraries", "transitive", "is_code_gen", "platform", "is_synthetic")
+    "sources", "libraries", "transitive", "is_code_gen", "platform", "is_synthetic")
   implicit val jvmPlatformFormat = jsonFormat(JvmPlatform, "source_level", "args", "target_level")
   implicit val jvmPlatformDictFormat = jsonFormat(JvmPlatformDict, "platforms", "default_platform")
   implicit val preferredJvmDistFormat = jsonFormat(PreferredJvmDistribution, "strict", "non_strict")

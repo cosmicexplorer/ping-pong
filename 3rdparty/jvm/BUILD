@@ -95,14 +95,11 @@ ENSIME_REV = '3.0.0-SNAPSHOT'
 jar_library(
   name='ensime',
   jars=[
-    scala_jar(org='org.ensime', name='api', rev=ENSIME_REV,
-              intransitive=True),
-    scala_jar(org='org.ensime', name='core', rev=ENSIME_REV,
-              intransitive=True),
-    scala_jar(org='org.ensime', name='s-express', rev=ENSIME_REV,
-              intransitive=True),
-    scala_jar(org='org.ensime', name='util', rev=ENSIME_REV,
-              intransitive=True),
+    scala_jar(org='org.ensime', name='api', rev=ENSIME_REV),
+    scala_jar(org='org.ensime', name='core', rev=ENSIME_REV),
+    scala_jar(org='org.ensime', name='json', rev=ENSIME_REV),
+    scala_jar(org='org.ensime', name='s-express', rev=ENSIME_REV),
+    scala_jar(org='org.ensime', name='util', rev=ENSIME_REV),
     # We pull everything in intransitively because the version of spray-json used is different than
     # the one we want, but we then need to provide scalaz-ioeffect for the 'api' jar, and others for
     # others.
@@ -113,7 +110,6 @@ jar_library(
   dependencies=[
     # Just so this gets invalidated if the local sbt dist does too.
     '3rdparty/jvm/vendor/ensime-server',
-    ':spray-json',
   ],
 )
 
@@ -121,7 +117,7 @@ jar_library(
   name='spray-json',
   jars=[
     scala_jar(org='io.spray', name='spray-json', rev='1.3.4'),
-  ]
+  ],
 )
 
 jar_library(

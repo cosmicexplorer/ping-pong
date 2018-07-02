@@ -32,7 +32,7 @@ def global_subsystems():
   return {Sbt}
 
 def register_goals():
-  task(name='custom-scrooge', action=CustomScrooge).install('gen')
+  task(name='publish-local-sbt-distributions', action=PublishLocalSbtDistributions).install('bootstrap')
   task(name='bootstrap-ensime-gen', action=BootstrapEnsimeGen).install('bootstrap')
+  task(name='custom-scrooge', action=CustomScrooge).install('gen')
   task(name='ensime-gen', action=EnsimeGen).install('ensime')
-  task(name='publish-local-sbt-distributions', action=PublishLocalSbtDistributions).install('gen')

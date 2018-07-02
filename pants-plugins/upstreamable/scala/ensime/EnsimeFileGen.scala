@@ -2,12 +2,14 @@ package pingpong.ensime
 
 import pingpong.ensime.PantsExportProtocol._
 
-import ammonite.ops.Path
+import ammonite.ops.{Path, RelPath}
 import org.ensime.api._
 import org.ensime.config.EnsimeConfigProtocol
 import org.ensime.sexp.SexpPrettyPrinter
 import org.ensime.sexp.SexpWriter.ops._
 import spray.json._
+
+import scala.collection.TraversableOnce._
 
 import java.io.File
 
@@ -18,28 +20,40 @@ object EnsimeFileGen extends App {
 
   val Array(buildRoot, scalaVersion, ensimeCacheDir) = args
 
+  val buildRootPath = Path(buildRoot)
+
   val allStdin = scala.io.Source.stdin.mkString
   val pantsExportParsed = allStdin.parseJson.convertTo[PantsExport]
 
   val defaultJvmPlatform = pantsExportParsed.jvmPlatforms.defaultPlatform
   val javaHome = pantsExportParsed.preferredJvmDistributions(defaultJvmPlatform).strict
 
-  // val projects = pantsExportParsed.targets.flatMap { case (id, target) => EnsimeProject(
-  //   id = EnsimeProjectId(project = id, config = "compile"),
-  //   depends = target.dependencies
-  //     .map(_.map(EnsimeProjectId(project = _, config = "compile")))
-  //     .getOrElse(Nil),
-  //   sources = target.globs.globs.map(makeGlobMatcher(_))
-  // )}
+  val projects: List[EnsimeProject] = pantsExportParsed.targets.map {
+      case (id, target) => EnsimeProject(
+        id = EnsimeProjectId(project = id, config = "compile"),
+        depends = target.dependencies
+          .map(_.map(dep => EnsimeProjectId(project = dep, config = "compile")).toList)
+          .getOrElse(Nil),
+        sources = target.sources
+          .map(srcRelPath => buildRootPath / RelPath(srcRelPath))
+          .map(srcPath => makeRawFile(srcPath.toString))
+          .toList,
+        targets = Nil,
+        scalacOptions = Nil,
+        javacOptions = Nil,
+        libraryJars = Nil,
+        librarySources = Nil,
+        libraryDocs = Nil,
+      )}.toList
 
   val ensimeConfig = validateEnsimeConfig(EnsimeConfig(
-    name = Path(buildRoot).last,
+    name = buildRootPath.last,
     rootDir = makeRawFile(buildRoot),
     cacheDir = makeRawFile(ensimeCacheDir),
     scalaVersion = scalaVersion,
     javaHome = makeRawFile(javaHome),
-    javaSources = List(),
-    projects = List(),
+    javaSources = Nil,
+    projects = projects,
   ))
 
   val ensimeSexp = ensimeConfig.toSexp

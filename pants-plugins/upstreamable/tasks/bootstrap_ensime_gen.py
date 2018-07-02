@@ -28,6 +28,11 @@ class BootstrapEnsimeGen(Task):
     return [EnsimeGenJar]
 
   @classmethod
+  def prepare(cls, options, round_manager):
+    super(BootstrapEnsimeGen, cls).prepare(options, round_manager)
+    round_manager.require('sbt_local_publish')
+
+  @classmethod
   def register_options(cls, register):
     super(BootstrapEnsimeGen, cls).register_options(register)
 
