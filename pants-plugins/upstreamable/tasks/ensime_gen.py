@@ -84,3 +84,12 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
                        workunit_labels=[WorkUnitLabel.TOOL],
                        distribution=DistributionLocator.cached(),
                        stdin=inf)
+
+        with open(export_outfile, 'rb') as inf:
+          execute_java(ensime_gen_classpath,
+                       'pingpong.ensime.EnsimeFileGen',
+                       args=argv,
+                       workunit_name='ensime-gen',
+                       workunit_labels=[WorkUnitLabel.TOOL],
+                       distribution=DistributionLocator.cached(),
+                       stdin=inf)
