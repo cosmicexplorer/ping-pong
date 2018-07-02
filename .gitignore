@@ -5,3 +5,4 @@
 .dir-locals.el
 /dist/
 *.pyc
+.ensime
