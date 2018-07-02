@@ -16,7 +16,7 @@ from pants.java.util import execute_java
 from pants.option.custom_types import target_option
 from pants.util.collections import assert_single_element
 from pants.util.contextutil import environment_as, temporary_dir
-from pants.util.dirutil import safe_mkdir
+from pants.util.dirutil import safe_mkdir, safe_mkdir_for
 from pants.util.memo import memoized_property
 from pants.util.objects import SubclassesOf
 
@@ -31,12 +31,18 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
 
     register('--reported-scala-version', type=str, default=None,
              help='Scala version to report to ensime. Defaults to the scala platform version.')
+
+    # register('--ensime-server', type=target_option, default='//:ensime-server',
+    #          help='Jar dependency target for the version of the ensime server to use when running.')
+
     register('--scalac-options', type=list,
              default=['-deprecation', '-unchecked', '-Xlint'],
              help='Options to pass to scalac for ensime.')
     register('--javac-options', type=list,
              default=['-deprecation', '-Xlint:all', '-Xlint:-serial', '-Xlint:-path'],
              help='Options to pass to javac for ensime.')
+    register('--output-file', type=str, default='.ensime', advanced=True,
+             help='Relative path to the output path to write the ensime config to.')
 
   @classmethod
   def prepare(cls, options, round_manager):
@@ -73,11 +79,15 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
 
       zinc_compile_dir = os.path.join(self.get_options().pants_workdir, 'compile/zinc')
 
+      output_file = os.path.join(get_buildroot(), self.get_options().output_file)
+      safe_mkdir_for(output_file)
+
       argv = [
         get_buildroot(),
         reported_scala_version,
         self._make_ensime_cache_dir(),
         zinc_compile_dir,
+        output_file,
       ]
 
       # FIXME: use safe shlex methods here!

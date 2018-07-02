@@ -5,14 +5,31 @@ import pingpong.ensime.PantsExportProtocol._
 import ammonite.ops.{Path, RelPath}
 import org.ensime.api._
 import org.ensime.config.EnsimeConfigProtocol
+import org.ensime.sexp.{SexpReader, SexpWriter}
 import org.ensime.sexp.SexpPrettyPrinter
 import org.ensime.sexp.SexpWriter.ops._
+import scalaz.deriving
 import spray.json._
 
 import scala.collection.TraversableOnce._
 import scala.sys
 
 import java.io.File
+import java.io.PrintWriter
+
+// @deriving(SexpReader, SexpWriter)
+// final case class ExpandedEnsimeConfig(
+//   rootDir: RawFile,
+//   cacheDir: RawFile,
+//   javaHome: RawFile,
+//   name: String,
+//   scalaVersion: String,
+//   javaSources: List[RawFile],
+//   projects: List[EnsimeProject],
+//   ensimeServerVersion: String,
+//   ensimeServerJars: List[RawFile],
+//   scalaCompilerJars:
+// )
 
 object EnsimeFileGen extends App {
   def makeRawFile(path: String) = RawFile(new File(path).toPath)
@@ -20,10 +37,11 @@ object EnsimeFileGen extends App {
   // TODO: use this (but it canonicalizes our symlinks, which is sad)
   def validateEnsimeConfig(cfg: EnsimeConfig) = EnsimeConfigProtocol.validated(cfg)
 
-  val Array(buildRoot, scalaVersion, ensimeCacheDir, zincCompileDir) = args
+  val Array(buildRoot, scalaVersion, ensimeCacheDir, zincCompileDir, outputFile) = args
 
   val buildRootPath = Path(buildRoot)
   val zincBasePath = Path(zincCompileDir)
+  val outputFilePath = Path(outputFile)
 
   val allStdin = scala.io.Source.stdin.mkString
   val pantsExportParsed = allStdin.parseJson.convertTo[PantsExport]
@@ -86,13 +104,17 @@ object EnsimeFileGen extends App {
     projects = projects,
   )
 
+  val outputFileWriter = new PrintWriter(outputFilePath.toIO)
+
   val ensimeSexp = ensimeConfig.toSexp
+
+  outputFileWriter.println(SexpPrettyPrinter(ensimeConfig.toSexp))
+
+  outputFileWriter.close()
 
   println("hey!")
 
   println(s"aaaaa:\n${allStdin}")
 
   println(s"bbbbb!!!:\n${pantsExportParsed.toJson.prettyPrint}")
-
-  println(s"hello, world:\n${SexpPrettyPrinter(ensimeSexp)}")
 }
