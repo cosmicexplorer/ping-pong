@@ -114,7 +114,10 @@ case class GitCheckout(sandboxRoot: Directory, source: GitRemote, revision: GitR
 // somewhere, then keep each checkout in some cache directory, using directory paths created from
 // the hash of the request. If the hash matches, check that the checkout actually corresponds to the
 // request!
-class GitRepoBackend extends RepoBackend.MethodPerEndpoint {
+// TODO: make some declarative way to lay out cache dirs in the fs like described above! This could
+// *easily* be extended to every repo and review backend. Be careful to not do anything a real
+// database or cache could do much easier and better!
+class GitRepoBackend(baseDir: Directory) extends RepoBackend.MethodPerEndpoint {
   override def getCheckout(request: CheckoutRequest): Future[CheckoutResponse] = {
     val wrappedRequest = GitCheckoutRequest(request)
     val checkoutExecution = Future.const(wrappedRequest).flatMap(_.checkout())
