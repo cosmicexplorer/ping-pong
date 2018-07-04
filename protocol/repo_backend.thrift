@@ -76,32 +76,33 @@ struct RepoLocation {
   1: optional string backend_location_spec;
 }
 
-struct GetSandboxGlobsRequest {
-  1: optional Revision revision;
-  2: optional PathGlobs path_globs;
-  3: optional RepoLocation repo_location;
+struct CheckoutRequest {
+  1: optional RepoLocation source;
+  2: optional Revision revision;
 }
 
-struct Sandbox {
+struct CheckoutLocation {
+  # In the future, this may represent an arbitrary address, not just a file path.
   1: optional string sandbox_root_absolute_path;
 }
 
-typedef list<RepoFile> RepoFileset
-
-struct SandboxWithExpandedGlobs {
-  1: optional Sandbox sandbox;
-  2: optional RepoFileset expanded_globs;
+struct Checkout {
+  1: optional CheckoutLocation checkout_location;
+  2: optional RepoLocation source;
+  3: optional Revision revision;
 }
+
+typedef list<RepoFile> RepoFileset
 
 exception RepoBackendError {
   1: optional string message;
 }
 
-union GetSandboxGlobsResponse {
-  1: SandboxWithExpandedGlobs sandbox_expanded_globs;
+union CheckoutResponse {
+  1: Checkout completed;
   2: RepoBackendError error;
 }
 
 service RepoBackend {
-  GetSandboxGlobsResponse getSandboxGlobs(1: GetSandboxGlobsRequest request),
+  CheckoutResponse getCheckout(1: CheckoutRequest request),
 }

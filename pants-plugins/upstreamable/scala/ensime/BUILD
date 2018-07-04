@@ -1,7 +1,7 @@
 scala_library(
   dependencies=[
     '3rdparty/jvm:ammonite-ops',
-    '3rdparty/jvm:ensime',
+    # '3rdparty/jvm:ensime',
     '3rdparty/jvm:spray-json',
   ],
 )

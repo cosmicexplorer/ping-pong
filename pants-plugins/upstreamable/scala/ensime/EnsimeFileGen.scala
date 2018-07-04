@@ -3,12 +3,6 @@ package pingpong.ensime
 import pingpong.ensime.PantsExportProtocol._
 
 import ammonite.ops.{Path, RelPath}
-import org.ensime.api._
-import org.ensime.config.EnsimeConfigProtocol
-import org.ensime.sexp.{SexpReader, SexpWriter}
-import org.ensime.sexp.SexpPrettyPrinter
-import org.ensime.sexp.SexpWriter.ops._
-import scalaz.deriving
 import spray.json._
 
 import scala.collection.TraversableOnce._
@@ -19,24 +13,22 @@ import java.io.PrintWriter
 
 // @deriving(SexpReader, SexpWriter)
 // final case class ExpandedEnsimeConfig(
-//   rootDir: RawFile,
-//   cacheDir: RawFile,
-//   javaHome: RawFile,
+//   rootDir: Path,
+//   cacheDir: Path,
+//   javaHome: Path,
 //   name: String,
 //   scalaVersion: String,
-//   javaSources: List[RawFile],
+//   javaSources: List[Path],
 //   projects: List[EnsimeProject],
 //   ensimeServerVersion: String,
-//   ensimeServerJars: List[RawFile],
+//   ensimeServerJars: List[Path],
 //   scalaCompilerJars:
 // )
 
+// TODO: when ensime-server gets its ensime config format in sync with the emacs package, use the
+// sexp-deriving classes in there. I spent a very long time trying to make it work before realizing
+// there are many things (e.g. :ensime-server-jars) not covered in the model at all.
 object EnsimeFileGen extends App {
-  def makeRawFile(path: String) = RawFile(new File(path).toPath)
-
-  // TODO: use this (but it canonicalizes our symlinks, which is sad)
-  def validateEnsimeConfig(cfg: EnsimeConfig) = EnsimeConfigProtocol.validated(cfg)
-
   val Array(buildRoot, scalaVersion, ensimeCacheDir, zincCompileDir, outputFile) = args
 
   val buildRootPath = Path(buildRoot)
@@ -53,7 +45,11 @@ object EnsimeFileGen extends App {
   val scalacEnvArgs = sys.env("PANTS_SCALAC_ARGS").split(" ")
   val javacEnvArgs = sys.env("PANTS_JAVAC_ARGS").split(" ")
 
-  val sourceTargets = pantsExportParsed.targets.filter(_._2.targetType == "scala_library")
+  val sourceTargetTypes = Set("scala_library", "java_library")
+
+  val sourceTargets = pantsExportParsed.targets.filter { case (_, target) =>
+    sourceTargetTypes(target.targetType)
+  }
   val sourceTargetSet = sourceTargets.map(_._1).toSet
 
   val projects: List[EnsimeProject] = sourceTargets
@@ -81,12 +77,12 @@ object EnsimeFileGen extends App {
         depends = dependentTargets,
         sources = target.sources
           .map(srcRelPath => buildRootPath / RelPath(srcRelPath))
-          .map(srcPath => makeRawFile(srcPath.toString))
+          .map(srcPath => makePath(srcPath.toString))
           .toList,
-        targets = List(makeRawFile(curTargetPath.toString)),
+        targets = List(makePath(curTargetPath.toString)),
         scalacOptions = scalacEnvArgs.toList,
         javacOptions = javacEnvArgs.toList,
-        libraryJars = dependentJars.map(jar => makeRawFile(jar.toString)).toList,
+        libraryJars = dependentJars.map(jar => makePath(jar.toString)).toList,
         // TODO: turn on sources and libraries in coursier resolve!
         librarySources = Nil,
         libraryDocs = Nil,
@@ -96,10 +92,10 @@ object EnsimeFileGen extends App {
 
   val ensimeConfig = EnsimeConfig(
     name = buildRootPath.last,
-    rootDir = makeRawFile(buildRoot),
-    cacheDir = makeRawFile(ensimeCacheDir),
+    rootDir = makePath(buildRoot),
+    cacheDir = makePath(ensimeCacheDir),
     scalaVersion = scalaVersion,
-    javaHome = makeRawFile(javaHome),
+    javaHome = makePath(javaHome),
     javaSources = Nil,
     projects = projects,
   )
