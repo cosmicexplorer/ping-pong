@@ -3,6 +3,10 @@ package pingpong.ensime
 import pingpong.ensime.PantsExportProtocol._
 
 import ammonite.ops.{Path, RelPath}
+import org.ensime.api._
+import org.ensime.config.EnsimeConfigProtocol
+import org.ensime.sexp.SexpPrettyPrinter
+import org.ensime.sexp.SexpWriter.ops._
 import spray.json._
 
 import scala.collection.TraversableOnce._
@@ -11,23 +15,6 @@ import scala.sys
 import java.io.File
 import java.io.PrintWriter
 
-// @deriving(SexpReader, SexpWriter)
-// final case class ExpandedEnsimeConfig(
-//   rootDir: Path,
-//   cacheDir: Path,
-//   javaHome: Path,
-//   name: String,
-//   scalaVersion: String,
-//   javaSources: List[Path],
-//   projects: List[EnsimeProject],
-//   ensimeServerVersion: String,
-//   ensimeServerJars: List[Path],
-//   scalaCompilerJars:
-// )
-
-// TODO: when ensime-server gets its ensime config format in sync with the emacs package, use the
-// sexp-deriving classes in there. I spent a very long time trying to make it work before realizing
-// there are many things (e.g. :ensime-server-jars) not covered in the model at all.
 object EnsimeFileGen extends App {
   val Array(buildRoot, scalaVersion, ensimeCacheDir, zincCompileDir, outputFile) = args
 
