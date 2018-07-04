@@ -25,10 +25,11 @@ object GitRevision {
   val maxLengthShaPattern = rx"\A[0-9a-f]{40}\Z"
   def apply(revision: Revision): Try[GitRevision] = {
     revision.backendRevisionSpec
-      .flatMap(maxLengthShaPattern.findFirstIn(_))
-      .map(validRevisionSpec => Return(GitRevision(validRevisionSpec)))
-      .getOrElse(Throw(GitInputParseError(
-        s"invalid revision ${revision}: string must exist and match ${maxLengthShaPattern}")))
+      .flatMap(maxLengthShaPattern.findFirstIn(_)) match {
+        case Some(validRevisionSpec) => Return(GitRevision(validRevisionSpec))
+        case None => Throw(GitInputParseError(
+          s"invalid revision ${revision}: string must exist and match ${maxLengthShaPattern}"))
+      }
   }
 }
 
