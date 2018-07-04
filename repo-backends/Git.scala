@@ -14,6 +14,8 @@ class GitRepoError(message: String, base: Throwable) extends RuntimeException(me
 
 case class GitInputParseError(message: String) extends GitRepoError(message)
 
+case class GitCacheError(message: String) extends GitRepoError(message)
+
 case class GitProcessInvocationError(message: String, base: Throwable)
     extends GitRepoError(message, base)
 
@@ -23,46 +25,105 @@ case class GitRevision(sha: String) {
 
 object GitRevision {
   val maxLengthShaPattern = rx"\A[0-9a-f]{40}\Z"
-  def apply(revision: Revision): Try[GitRevision] = {
+
+  def apply(revision: Revision): Try[GitRevision] = Try {
     revision.backendRevisionSpec
-      .flatMap(maxLengthShaPattern.findFirstIn(_)) match {
-        case Some(validRevisionSpec) => Return(GitRevision(validRevisionSpec))
-        case None => Throw(GitInputParseError(
-          s"invalid revision ${revision}: string must exist and match ${maxLengthShaPattern}"))
-      }
+      .map(GitRevision(_).get())
+      .head
+  }
+
+  def apply(sha: String): Try[GitRevision] = {
+    maxLengthShaPattern.findFirstIn(sha) match {
+      case Some(validRevisionSpec) => Return(new GitRevision(validRevisionSpec))
+      case None => Throw(GitInputParseError(
+        s"invalid revision ${sha}: string must exist and match ${maxLengthShaPattern}"))
+    }
   }
 }
+
+case class GitCloneBase(dir: Directory)
+
+case class GitCloneResultLocalDirectory(source: GitRemote, dir: Directory)
 
 sealed trait GitRemote {
   protected def gitRemoteAddress: String
   // The name to use for the local directory when cloning.
-  protected def localDirname: RelPath
+  def localDirname: RelPath
 
   def asThrift = RepoLocation(Some(gitRemoteAddress))
 
-  private def getTmpDir(): Future[Path] = Future {
-    tmp.dir(deleteOnExit = false)
+  def hashDirname: String
+
+  private def getOrCreateCloneDir(baseDir: Directory): Future[Path] = Future {
+    val curCloneCachePath = RelPath(hashDirname)
+    val cloneDir = baseDir.path / curCloneCachePath
+    mkdir! cloneDir
+    cloneDir
   }
 
-  private def asProcessExecution(): Future[(ExecuteProcessRequest, Path)] = {
-    getTmpDir().flatMap(Directory(_)).map(_.path / localDirname).flatMap { cloneDirPath =>
-      val gitCloneRequest = Directory(pwd).map { wd => ExecuteProcessRequest.create(
-        Vector("git", "clone", gitRemoteAddress, cloneDirPath.toString),
+  private def asProcessExecution(cloneIntoDir: Path): Future[ExecuteProcessRequest] = {
+    Directory(pwd).map { wd =>
+      ExecuteProcessRequest.create(
+        Vector("git", "clone", gitRemoteAddress, cloneIntoDir.toString),
         pwd = wd)
-      }
-      gitCloneRequest.map((_, cloneDirPath))
     }
   }
 
-  def performClone(): Future[Directory] = asProcessExecution()
-    .flatMap { case (processRequest, resultingPath) => processRequest.invoke()
-      .flatMap(_ => Directory(resultingPath))
+  private def verifyCloneDirOrFetch(cloneDir: Directory): Future[GitCloneResultLocalDirectory] = {
+    val cloneIntoDir = cloneDir.path / localDirname
+    Directory.maybeExistingDir(cloneIntoDir).flatMap { dirOpt =>
+      dirOpt.map { cloneSameRepoDir =>
+        val gitRemoteRequest = ExecuteProcessRequest.create(
+          Vector("git", "remote", "get-url", "origin"),
+          pwd = cloneSameRepoDir)
+        gitRemoteRequest.invoke()
+          .flatMap { result =>
+            val remoteStr = result.out.trim
+            val expectedRemote = gitRemoteAddress
+            if (remoteStr == expectedRemote) {
+              Future(GitCloneResultLocalDirectory(this, cloneSameRepoDir))
+            } else {
+              val errMsg = (
+                s"Clone directory ${cloneSameRepoDir} did not point to " +
+                  s"expected git remote ${expectedRemote}.")
+              Future.const(Throw(GitCacheError(errMsg)))
+            }
+          }
+      }
+        .getOrElse {
+          val gitCloneRequest = asProcessExecution(cloneIntoDir)
+          gitCloneRequest
+            .flatMap { req =>
+              req.invoke()
+                .rescue { case e => Future.const(Throw(GitCacheError(
+                  s"Clone request ${req} failed.")))
+                }
+                .flatMap(_ => Directory(cloneIntoDir)
+                  .map(GitCloneResultLocalDirectory(this, _))
+                  .rescue { case e => Future.const(Throw {
+                    val errMsg = (
+                      s"Clone request ${req} succeeded, but failed to create " +
+                        s"directory ${cloneIntoDir}.")
+                    GitCacheError(errMsg)
+                  })})
+            }
+        }
     }
+  }
+
+  def performClone(cloneBase: GitCloneBase): Future[GitCloneResultLocalDirectory] = {
+    getOrCreateCloneDir(cloneBase.dir).flatMap(Directory(_))
+      .flatMap(verifyCloneDirOrFetch)
+  }
 }
 
 case class LocalFilesystemRepo(rootDir: Path) extends GitRemote {
   override protected def gitRemoteAddress: String = rootDir.toString
-  override protected def localDirname: RelPath = RelPath(rootDir.last)
+  override def localDirname: RelPath = RelPath(rootDir.last)
+  override def hashDirname: String = {
+    val dirJoined = rootDir.segments.reduce((acc, cur) => s"${acc}-${cur}")
+    s"local:${dirJoined}"
+  }
 }
 
 object GitRemote {
@@ -76,15 +137,89 @@ object GitRemote {
   }
 }
 
-case class GitCheckoutRequest(source: GitRemote, revision: GitRevision) {
-  private def checkoutProcessRequest(clonedDir: Directory) = ExecuteProcessRequest.create(
-    Vector("git", "checkout", revision.sha),
-    pwd = clonedDir)
+case class GitWorktreeBase(dir: Directory)
 
-  // TODO: caching, cleanup, etc
-  def checkout(): Future[GitCheckout] = source.performClone().flatMap { clonedDir =>
-    checkoutProcessRequest(clonedDir).invoke()
-      .map(_ => GitCheckout(clonedDir, source, revision))
+case class GitRepoParams(cloneBase: GitCloneBase, worktreeBase: GitWorktreeBase)
+
+case class GitCheckedOutWorktree(
+  cloneResult: GitCloneResultLocalDirectory,
+  revision: GitRevision,
+  dir: Directory,
+) {
+  def asThrift = {
+    val checkoutLocation = CheckoutLocation(Some(dir.asStringPath))
+    Checkout(Some(checkoutLocation), Some(cloneResult.source.asThrift), Some(revision.asThrift))
+  }
+}
+
+case class GitCheckoutRequest(source: GitRemote, revision: GitRevision) {
+  private def worktreeCheckoutRequest(
+    cloneResult: GitCloneResultLocalDirectory, intoWorktreeDir: Path,
+  ) = ExecuteProcessRequest.create(
+    Vector("git", "worktree", "add", intoWorktreeDir.toString, revision.sha),
+    pwd = cloneResult.dir)
+
+  def hashDirname: String = s"${source.hashDirname}@${revision.sha}"
+
+  private def getOrCreateWorktreeDir(baseDir: Directory): Future[Path] = Future {
+    val curWorktreeCachePath = RelPath(hashDirname)
+    val worktreeDir = baseDir.path / curWorktreeCachePath
+    mkdir! worktreeDir
+    worktreeDir
+  }
+
+  private def verifyWorktreeDirOrCreate(
+    cloneResult: GitCloneResultLocalDirectory, worktreeDir: Directory,
+  ): Future[GitCheckedOutWorktree] = {
+    val intoWorktreeDir = worktreeDir.path / cloneResult.source.localDirname
+    Directory.maybeExistingDir(intoWorktreeDir).flatMap { dirOpt =>
+      dirOpt.map { worktreeExistsDir =>
+        val gitRevisionCheckRequest = ExecuteProcessRequest.create(
+          Vector("git", "rev-parse", "HEAD"),
+          pwd = worktreeExistsDir)
+        gitRevisionCheckRequest.invoke()
+          .flatMap { result =>
+            Future.const(GitRevision(result.out.trim))
+              .flatMap { worktreeRevision =>
+                if (worktreeRevision == revision) {
+                  Future(GitCheckedOutWorktree(cloneResult, revision, worktreeExistsDir))
+                } else {
+                  val errMsg = (
+                    s"Worktree directory ${worktreeExistsDir} did not point to " +
+                      s"expected revision ${revision}.")
+                  Future.const(Throw(GitCacheError(errMsg)))
+                }
+              }
+          }
+      }
+        .getOrElse {
+          val gitWorktreeRequest = worktreeCheckoutRequest(cloneResult, intoWorktreeDir)
+          gitWorktreeRequest.invoke()
+            .rescue { case e => Future.const(Throw(GitCacheError(
+              s"Worktree checkout request ${gitWorktreeRequest} failed.")))
+            }
+            .flatMap(_ => Directory(intoWorktreeDir)
+              .map(GitCheckedOutWorktree(cloneResult, revision, _))
+              .rescue { case e => Future.const(Throw {
+                val errMsg = (
+                  s"Worktree checkout request ${gitWorktreeRequest} succeeded, but failed " +
+                    s"to create directory ${intoWorktreeDir}.")
+                GitCacheError(errMsg)
+              })})
+        }
+    }
+  }
+
+  private def createWorktreeForRevision(
+    cloneResult: GitCloneResultLocalDirectory, worktreeBase: GitWorktreeBase,
+  ): Future[GitCheckedOutWorktree] = {
+    getOrCreateWorktreeDir(worktreeBase.dir).flatMap(Directory(_))
+      .flatMap(verifyWorktreeDirOrCreate(cloneResult, _))
+  }
+
+  def checkout(params: GitRepoParams): Future[GitCheckedOutWorktree] = {
+    source.performClone(params.cloneBase)
+      .flatMap(createWorktreeForRevision(_, params.worktreeBase))
   }
 }
 
@@ -101,26 +236,17 @@ object GitCheckoutRequest {
   }
 }
 
-// Here, `sandboxRoot` is where the repo is checked out on disk, and `source` is where to clone it
-// from.
-case class GitCheckout(sandboxRoot: Directory, source: GitRemote, revision: GitRevision) {
-  def asThrift = {
-    val checkoutLocation = CheckoutLocation(Some(sandboxRoot.asStringPath))
-    Checkout(Some(checkoutLocation), Some(source.asThrift), Some(revision.asThrift))
-  }
-}
+class GitRepoBackend(repoParams: GitRepoParams)
+    extends RepoBackend.MethodPerEndpoint {
 
-// TODO: use **worktrees** instead of doing a new clone each time, keep a base clone of each remote
-// somewhere, then keep each checkout in some cache directory, using directory paths created from
-// the hash of the request. If the hash matches, check that the checkout actually corresponds to the
-// request!
-// TODO: make some declarative way to lay out cache dirs in the fs like described above! This could
-// *easily* be extended to every repo and review backend. Be careful to not do anything a real
-// database or cache could do much easier and better!
-class GitRepoBackend(baseDir: Directory) extends RepoBackend.MethodPerEndpoint {
+  // Use worktrees from a single clone, instead of doing a new clone each time. Keep a base clone of
+  // each remote in `repoParams.cloneBase`, then keep each checkout in a worktree branched from that
+  // clone, under `repoParams.worktreeBase`, using directory paths created from the hash of the
+  // request. If the hash matches, we check that the checkout actually corresponds to the request!
+  // TODO: cleanup, somehow!
   override def getCheckout(request: CheckoutRequest): Future[CheckoutResponse] = {
     val wrappedRequest = GitCheckoutRequest(request)
-    val checkoutExecution = Future.const(wrappedRequest).flatMap(_.checkout())
+    val checkoutExecution = Future.const(wrappedRequest).flatMap(_.checkout(repoParams))
 
     checkoutExecution
       .map(checkout => CheckoutResponse.Completed(checkout.asThrift))

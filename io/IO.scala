@@ -18,11 +18,19 @@ case class Directory(path: Path) extends IOEntity {
 
 object Directory {
   // `Future` apply() runs the body in a separate thread.
-  def apply(path: Path): Future[Directory] = Future {
+  def apply(path: Path): Future[Directory] = {
+    maybeExistingDir(path)
+      .map {
+        case None => throw IOError(s"Path ${path} does not exist or is not a directory.")
+        case Some(x) => x
+      }
+  }
+
+  def maybeExistingDir(path: Path): Future[Option[Directory]] = Future {
     if (path.toIO.isDirectory) {
-      new Directory(path)
+      Some(new Directory(path))
     } else {
-      throw IOError(s"Path ${path} does not exist or is not a directory.")
+      None
     }
   }
 }
