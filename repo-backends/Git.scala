@@ -110,6 +110,10 @@ case class GitCheckout(sandboxRoot: Directory, source: GitRemote, revision: GitR
   }
 }
 
+// TODO: use **worktrees** instead of doing a new clone each time, keep a base clone of each remote
+// somewhere, then keep each checkout in some cache directory, using directory paths created from
+// the hash of the request. If the hash matches, check that the checkout actually corresponds to the
+// request!
 class GitRepoBackend extends RepoBackend.MethodPerEndpoint {
   override def getCheckout(request: CheckoutRequest): Future[CheckoutResponse] = {
     val wrappedRequest = GitCheckoutRequest(request)
