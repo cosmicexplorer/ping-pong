@@ -4,12 +4,13 @@ scala_library(
     '3rdparty/jvm:guice',
     '3rdparty/jvm:slf4j-impl',
     'protocol:repo_backend',
+    'repo-backends',
   ]
 )
 
 jvm_binary(
-  name='cli',
-  main='pingpong.server.ServerMain',
+  name='git-server',
+  main='pingpong.server.GitServerMain',
   dependencies=[
     ':server',
   ],
