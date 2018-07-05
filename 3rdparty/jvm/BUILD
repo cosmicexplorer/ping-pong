@@ -96,8 +96,6 @@ jar_library(
   ],
 )
 
-ENSIME_REV = '2.0.1'
-
 ASM_REV = '6.1.1'
 
 jar_library(
@@ -111,6 +109,9 @@ jar_library(
   ],
 )
 
+ENSIME_REV = '2.0.1'
+
+# TODO: make this into its own subsystem!
 jar_library(
   name='ensime-api',
   jars=[
