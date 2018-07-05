@@ -90,7 +90,7 @@ jar_library(
     scala_jar(org='org.scalatest', name='scalatest', rev='3.0.5'),
     scala_jar(org='org.scalatest', name='scalatest', rev='3.0.5', classifier='test'),
   ],
-  scope='compile test',
+  scope='compile test provided',
 )
 
 jar_library(
@@ -98,7 +98,7 @@ jar_library(
   jars=[
     scala_jar(org='com.twitter', name='bijection-util', rev='0.9.6'),
   ],
-  scope='compile test',
+  scope='compile test provided',
 )
 
 jar_library(

@@ -32,7 +32,12 @@ object TestEnvironmentModule extends TwitterModule {
   }
 }
 
-class ServerFeatureTest extends AsyncFunSuite with FeatureTestMixin {
+abstract class AsyncTwitterFeatureTest extends AsyncFunSuite with FeatureTestMixin {
+  def testAsync(msg: String)(f: => Future[org.scalatest.compatible.Assertion]) =
+    test(msg)(f.as[scala.concurrent.Future[org.scalatest.compatible.Assertion]])
+}
+
+class ServerFeatureTest extends AsyncTwitterFeatureTest {
   override val server = new EmbeddedThriftServer(
     twitterServer = new RepoBackendServer {
       override def overrideModules = Seq(TestEnvironmentModule)
@@ -45,7 +50,7 @@ class ServerFeatureTest extends AsyncFunSuite with FeatureTestMixin {
   lazy val curSha = %%("git", "rev-parse", "HEAD")(pwd).out.trim
 
   // FIXME: make this highlight correctly in ensime!
-  test("Server#return an error message") {
+  testAsync("Server#return an error message") {
     client.getCheckout(
       CheckoutRequest(
         Some(RepoLocation(Some(curRepoRoot.toString))),
@@ -62,6 +67,5 @@ class ServerFeatureTest extends AsyncFunSuite with FeatureTestMixin {
         repo should equal(RepoLocation(Some(curRepoRoot.toString)))
         rev should equal(Revision(Some(curSha)))
       }
-      .as[scala.concurrent.Future[org.scalatest.compatible.Assertion]]
   }
 }
