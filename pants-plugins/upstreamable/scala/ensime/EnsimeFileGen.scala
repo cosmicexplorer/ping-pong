@@ -1,7 +1,5 @@
 package pingpong.ensime
 
-import scala.Predef.{ any2stringadd => _, _ }
-
 import pingpong.ensime.ExpandedEnsimeSexpProtocol._
 import pingpong.ensime.PantsExportProtocol._
 

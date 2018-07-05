@@ -21,6 +21,13 @@ jar_library(
   ],
 )
 
+jar_library(
+  name='libthrift',
+  jars=[
+    jar(org='org.apache.thrift', name='libthrift', rev='0.11.0'),
+  ],
+)
+
 
 TWITTER_JVM_REV = '18.6.0'
 

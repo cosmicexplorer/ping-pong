@@ -45,6 +45,8 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
 
   @classmethod
   def prepare(cls, options, round_manager):
+    # NB: this is so we run after compile -- we want our class dirs to be populated already.
+    round_manager.require_data('runtime_classpath')
     round_manager.require_data(EnsimeGenJar)
     cls.prepare_tools(round_manager)
 
@@ -102,7 +104,6 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
         ensime_server_version,
       ]
 
-      # FIXME: use safe shlex methods here!
       env = {
         'SCALAC_ARGS': json.dumps(self.get_options().scalac_options),
         'JAVAC_ARGS': json.dumps(self.get_options().javac_options),
