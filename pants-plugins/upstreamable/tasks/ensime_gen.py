@@ -7,7 +7,6 @@ import os
 from pants.base.build_environment import get_buildroot, get_pants_cachedir
 from pants.backend.jvm.subsystems.scala_platform import ScalaPlatform
 from pants.backend.jvm.tasks.jvm_tool_task_mixin import JvmToolTaskMixin
-from pants.backend.project_info.tasks.export import ExportTask
 from pants.build_graph.address import Address
 from pants.base.workunit import WorkUnitLabel
 from pants.java.distribution.distribution import DistributionLocator
@@ -21,9 +20,10 @@ from pants.util.memo import memoized_property
 from pants.util.objects import SubclassesOf
 
 from upstreamable.tasks.bootstrap_ensime_gen import EnsimeGenJar
+from upstreamable.tasks.modified_export_task_base import ModifiedExportTaskBase
 
 
-class EnsimeGen(ExportTask, JvmToolTaskMixin):
+class EnsimeGen(ModifiedExportTaskBase, JvmToolTaskMixin):
 
   @classmethod
   def register_options(cls, register):

@@ -41,32 +41,32 @@ object EnsimeFileGen extends App {
   val ensimeServerJars = sys.env("ENSIME_SERVER_JARS_CLASSPATH").split(":").toSeq
   val scalaCompilerJars = sys.env("SCALA_COMPILER_JARS_CLASSPATH").split(":").toSeq
 
-  val sourceTargetTypes = Set("scala_library", "java_library")
+  val sourceTargetTypes = Set("scala_library", "java_library", "junit_tests")
 
   val sourceTargets = pantsExportParsed.targets.filter { case (_, target) =>
     sourceTargetTypes(target.targetType)
   }
   // Refer to dependencies by their `id`, not by `depName` (which is a pants target spec -- not
   // allowed).
-  val sourceTargetMap = sourceTargets.map { case (depName, target) => (depName, target.id) }.toMap
+  val sourceTargetMap = sourceTargets
+    .map { case (depName, target) => (depName, (target.scope, target.id)) }
+    .toMap
 
   val projects: Seq[EnsimeProject] = sourceTargets
     .map { case (_, target) =>
 
       val curTargetPath = zincBasePath / "current" / RelPath(target.id) / "current" / "classes"
       val dependentJars = target.libraries.flatMap { coord =>
-        pantsExportParsed.libraries(coord)
-          .get(target.scope)
-          .map(_.split(":").toSeq)
+        pantsExportParsed.libraries.get(coord)
           .getOrElse(Seq())
+          // Get libraries in all "scopes". "Scopes" here refers to a maven classifier -- NOT the
+          // same as `target.scope`!
+          .flatMap(_._2.split(":").toSeq)
       }
 
       val dependentTargets = target.dependencies
-        .map { deps => deps
-          .flatMap(sourceTargetMap.get(_))
-          .map(depId => EnsimeProjectId(project = depId, config = "compile"))
-
-        }
+        .map(_.flatMap(sourceTargetMap.get(_))
+          .map { case (scope, id) => EnsimeProjectId(project = id, config = scope) })
         .getOrElse(Seq())
 
       val sources = target.sources.getOrElse(Seq())
@@ -76,10 +76,9 @@ object EnsimeFileGen extends App {
         .toSet
 
       EnsimeProject(
-        // TODO: make "compile" into target.scope!
         // NB: There are certain restrictions on the string provided for the "project" field here
         // that are a result of translating it directly into an Akka address.
-        id = EnsimeProjectId(project = target.id, config = "compile"),
+        id = EnsimeProjectId(project = target.id, config = target.scope),
         depends = dependentTargets.toList,
         sources = sources,
         targets = Set(makeRawFile(curTargetPath.toString)),

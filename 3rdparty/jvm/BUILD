@@ -68,9 +68,10 @@ jar_library(
               classifier='tests'),
   ],
   dependencies=[
-    ':mockito',
+    ':scalatest',
     ':slf4j-impl',
   ],
+  scope='compile test',
 )
 
 
@@ -80,6 +81,7 @@ jar_library(
     jar(org='org.mockito', name='mockito-core', rev='1.9.5'),
     jar(org='org.mockito', name='mockito-core', rev='1.9.5', classifier='test'),
   ],
+  scope='compile test',
 )
 
 jar_library(
@@ -88,6 +90,7 @@ jar_library(
     scala_jar(org='org.scalatest', name='scalatest', rev='3.0.5'),
     scala_jar(org='org.scalatest', name='scalatest', rev='3.0.5', classifier='test'),
   ],
+  scope='compile test',
 )
 
 jar_library(
