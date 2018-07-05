@@ -22,8 +22,8 @@ class Sbt(Subsystem):
              advanced=True,
              help='Where to publish locally-built sbt distributions to.')
 
-    register('--version', type=str, default='1.1.4', advanced=True,
-             help='What version of sbt to use to build local sbt dists.')
+    register('--version', type=str, default=None, advanced=True,
+             help='Optional version of sbt to use to build local sbt dists.')
 
   @memoized_property
   def local_publish_repo(self):

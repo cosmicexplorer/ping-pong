@@ -30,7 +30,6 @@ class CustomScalaDependencies(object):
   _INJECTABLES_SPECS = {
     'scalac': [InjectableScalaPlatformDep('scala-compiler', klass=JarDependency)],
     'scala-library': [InjectableScalaPlatformDep('scala-library', klass=JarDependency)],
-    'scala-runtime': [InjectableScalaPlatformDep('scala-runtime')],
   }
 
   def _create_jar_library(self, name, jars):
@@ -40,7 +39,7 @@ class CustomScalaDependencies(object):
     all_jar_deps = [d.as_scala_platform_jar_dep(version) for d in deps]
     self._create_jar_library(name, all_jar_deps)
 
-  def __call__(self, version):
+  def __call__(self, version, with_reflect=False, with_scalap=False):
     for name, deps in self._INJECTABLES_SPECS.items():
       # FIXME: do we need this deepcopy? it's done in managed_jar_dependencies.py but idk why
       self._create_jar_library_from_deps(name, copy.deepcopy(deps), version)
@@ -49,3 +48,15 @@ class CustomScalaDependencies(object):
       JarDependency(org='com.lihaoyi', name='ammonite_{}'.format(version), rev='1.1.2'),
     ]
     self._create_jar_library('scala-repl', copy.deepcopy(ammonite_repl_deps))
+
+    if with_reflect:
+      scala_reflect_deps = [
+        JarDependency(org='org.scala-lang', name='scala-reflect', rev=version),
+      ]
+      self._create_jar_library('scala-reflect', copy.deepcopy(scala_reflect_deps))
+
+    if with_scalap:
+      scalap_deps = [
+        JarDependency(org='org.scala-lang', name='scalap', rev=version),
+      ]
+      self._create_jar_library('scalap', copy.deepcopy(scalap_deps))

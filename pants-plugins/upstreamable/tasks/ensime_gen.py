@@ -32,9 +32,6 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
     register('--reported-scala-version', type=str, default=None,
              help='Scala version to report to ensime. Defaults to the scala platform version.')
 
-    # register('--ensime-server', type=target_option, default='//:ensime-server',
-    #          help='Jar dependency target for the version of the ensime server to use when running.')
-
     register('--scalac-options', type=list,
              default=['-deprecation', '-unchecked', '-Xlint'],
              help='Options to pass to scalac for ensime.')
@@ -43,6 +40,8 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
              help='Options to pass to javac for ensime.')
     register('--output-file', type=str, default='.ensime', advanced=True,
              help='Relative path to the output path to write the ensime config to.')
+
+    cls.register_jvm_tool(register, 'ensime-server')
 
   @classmethod
   def prepare(cls, options, round_manager):
@@ -58,6 +57,10 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
     cache_dir = os.path.join(bootstrap_dir, 'ensime')
     safe_mkdir(cache_dir)
     return cache_dir
+
+  @memoized_property
+  def _scala_platform(self):
+    return ScalaPlatform.global_instance()
 
   def execute(self):
 
@@ -75,12 +78,20 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
       # TODO: use JvmPlatform for jvm options!
       reported_scala_version = self.get_options().reported_scala_version
       if not reported_scala_version:
-        reported_scala_version = ScalaPlatform.global_instance().version
+        reported_scala_version = self._scala_platform.version
 
       zinc_compile_dir = os.path.join(self.get_options().pants_workdir, 'compile/zinc')
 
       output_file = os.path.join(get_buildroot(), self.get_options().output_file)
       safe_mkdir_for(output_file)
+
+      # This is what we depend on in 3rdparty/jvm:ensime-server.
+      ensime_server_version = '2.0.1'
+
+      ensime_server_jars = self.tool_classpath_from_products(self.context.products, 'ensime-server',
+                                                             scope=self.options_scope)
+
+      scala_compiler_jars = self._scala_platform.compiler_classpath(self.context.products)
 
       argv = [
         get_buildroot(),
@@ -88,12 +99,15 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
         self._make_ensime_cache_dir(),
         zinc_compile_dir,
         output_file,
+        ensime_server_version,
       ]
 
       # FIXME: use safe shlex methods here!
       env = {
-        'PANTS_SCALAC_ARGS': ' '.join(self.get_options().scalac_options),
-        'PANTS_JAVAC_ARGS': ' '.join(self.get_options().javac_options),
+        'SCALAC_ARGS': json.dumps(self.get_options().scalac_options),
+        'JAVAC_ARGS': json.dumps(self.get_options().javac_options),
+        'ENSIME_SERVER_JARS_CLASSPATH': ':'.join(ensime_server_jars),
+        'SCALA_COMPILER_JARS_CLASSPATH': ':'.join(scala_compiler_jars),
       }
 
       with open(export_outfile, 'rb') as inf:

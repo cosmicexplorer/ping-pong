@@ -86,27 +86,70 @@ jar_library(
 jar_library(
   name='twitter-util',
   jars=[
-    scala_jar(org='com.twitter', name='util-core', rev=TWITTER_JVM_REV),
-  ]
+    scala_jar(org='com.twitter', name='util-core', rev=TWITTER_JVM_REV,
+              excludes=[exclude(org='org.scala-lang', name='scala-library'),
+                        exclude(org='org.scala-lang', name='scala-reflect')]),
+  ],
+  dependencies=[
+    '//:scala-library',
+    '//:scala-reflect',
+  ],
 )
 
-# FIXME: do we need this? I know version control is so you don't have to comment out code, but this
-# is the only instance of using an sbt_dist()!
-# ENSIME_REV = '3.0.0-SNAPSHOT'
+ENSIME_REV = '2.0.1'
+
+ASM_REV = '6.1.1'
+
+jar_library(
+  name='ow2-asm',
+  jars=[
+    jar(org='org.ow2.asm', name='asm', rev=ASM_REV),
+    jar(org='org.ow2.asm', name='asm-analysis', rev=ASM_REV),
+    jar(org='org.ow2.asm', name='asm-commons', rev=ASM_REV),
+    jar(org='org.ow2.asm', name='asm-tree', rev=ASM_REV),
+    jar(org='org.ow2.asm', name='asm-util', rev=ASM_REV),
+  ],
+)
+
+jar_library(
+  name='ensime-api',
+  jars=[
+    scala_jar(org='org.ensime', name='api', rev=ENSIME_REV,
+              excludes=[exclude(org='org.scala-lang'),
+                        exclude(org='org.ow2.asm'),
+                        exclude(org='io.spray')]),
+    scala_jar(org='org.ensime', name='core', rev=ENSIME_REV,
+              excludes=[exclude(org='org.scala-lang'),
+                        exclude(org='org.ow2.asm'),
+                        exclude(org='io.spray')]),
+    scala_jar(org='org.ensime', name='s-express', rev=ENSIME_REV,
+              excludes=[exclude(org='org.scala-lang'),
+                        exclude(org='org.ow2.asm'),
+                        exclude(org='io.spray')]),
+    scala_jar(org='org.ensime', name='util', rev=ENSIME_REV,
+              excludes=[exclude(org='org.scala-lang'),
+                        exclude(org='org.ow2.asm'),
+                        exclude(org='io.spray')]),
+    # We pull everything in intransitively because the version of spray-json used is different than
+    # the one we want, but we then need to provide scalaz-ioeffect for the 'api' jar, and others for
+    # others.
+    scala_jar(org='com.chuusai', name='shapeless', rev='2.3.3'),
+    # scala_jar(org='com.lihaoyi', name='fastparse', rev='0.4.4'),
+    scala_jar(org='org.scalaz', name='scalaz-ioeffect', rev='2.5.0'),
+  ],
+  dependencies=[
+    '//:scalap',
+    ':ow2-asm',
+  ],
+)
+
+# # FIXME: use this along with sbt_dist()!
 # jar_library(
-#   name='ensime',
+#   name='ensime-server-2.0.1-local',
 #   jars=[
-#     scala_jar(org='org.ensime', name='api', rev=ENSIME_REV),
-#     scala_jar(org='org.ensime', name='core', rev=ENSIME_REV),
-#     scala_jar(org='org.ensime', name='json', rev=ENSIME_REV),
-#     scala_jar(org='org.ensime', name='s-express', rev=ENSIME_REV),
-#     scala_jar(org='org.ensime', name='util', rev=ENSIME_REV),
-#     # We pull everything in intransitively because the version of spray-json used is different than
-#     # the one we want, but we then need to provide scalaz-ioeffect for the 'api' jar, and others for
-#     # others.
-#     scala_jar(org='com.chuusai', name='shapeless', rev='2.3.3'),
-#     scala_jar(org='com.lihaoyi', name='fastparse', rev='0.4.4'),
-#     scala_jar(org='org.scalaz', name='scalaz-ioeffect', rev='2.5.0'),
+#     scala_jar(org='org.ensime', name='server', rev='2.0.1-EDITED',
+#               excludes=[exclude(org='org.scala-lang')]),
+#     jar(org='org.scala-lang', name='scalap', rev='2.12.6'),
 #   ],
 #   dependencies=[
 #     # Just so this gets invalidated if the local sbt dist does too.
@@ -114,30 +157,25 @@ jar_library(
 #   ],
 # )
 
-ENSIME_REV = '2.0.1'
-
 jar_library(
-  name='ensime-api-2.0.1',
+  name='ensime-server',
   jars=[
-    scala_jar(org='org.ensime', name='api', rev=ENSIME_REV),
-    scala_jar(org='org.ensime', name='core', rev=ENSIME_REV),
-    scala_jar(org='org.ensime', name='json', rev=ENSIME_REV),
-    scala_jar(org='org.ensime', name='s-express', rev=ENSIME_REV),
-    scala_jar(org='org.ensime', name='util', rev=ENSIME_REV),
+    scala_jar(org='org.ensime', name='server', rev=ENSIME_REV,
+              excludes=[exclude(org='org.scala-lang'),
+                        exclude(org='org.ow2.asm')]),
+    jar(org='org.scala-lang', name='scalap', rev='2.12.6'),
     # We pull everything in intransitively because the version of spray-json used is different than
     # the one we want, but we then need to provide scalaz-ioeffect for the 'api' jar, and others for
     # others.
     scala_jar(org='com.chuusai', name='shapeless', rev='2.3.3'),
-    scala_jar(org='com.lihaoyi', name='fastparse', rev='0.4.4'),
+    # scala_jar(org='com.lihaoyi', name='fastparse', rev='0.4.4'),
     scala_jar(org='org.scalaz', name='scalaz-ioeffect', rev='2.5.0'),
   ],
-)
-
-jar_library(
-  name='ensime-server-2.0.1',
-  jars=[
-    scala_jar(org='org.ensime', name='server', rev=ENSIME_REV),
-  ],
+  dependencies=[
+    '//:scala-library',
+    '//:scala-reflect',
+    ':ow2-asm',
+  ]
 )
 
 jar_library(

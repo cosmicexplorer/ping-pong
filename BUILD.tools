@@ -1,2 +1,6 @@
-custom_scala_dependencies(version='2.12.6')
+custom_scala_dependencies(
+  version='2.12.6',
+  with_reflect=True,
+  with_scalap=True,
+)
 custom_scrooge_dependencies(version='18.6.0')

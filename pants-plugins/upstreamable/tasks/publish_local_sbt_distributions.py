@@ -23,6 +23,12 @@ class PublishLocalSbtDistributions(Task):
     return ['sbt_local_publish']
 
   @classmethod
+  def register_options(cls, register):
+    super(PublishLocalSbtDistributions, cls).register_options(register)
+
+    register('--skip', type=bool, default=False)
+
+  @classmethod
   def subsystem_dependencies(cls):
     return super(PublishLocalSbtDistributions, cls).subsystem_dependencies() + (
       DistributionLocator,
@@ -38,6 +44,9 @@ class PublishLocalSbtDistributions(Task):
   source_target_constraint = Exactly(SbtDist)
 
   def execute(self):
+    if self.get_options().skip:
+      return
+
     sbt_dist_targets = self.context.targets(self.source_target_constraint.satisfied_by)
 
     jvm_dist_locator = DistributionLocator.cached()
@@ -60,12 +69,12 @@ class PublishLocalSbtDistributions(Task):
 
         with self.context.new_workunit(
             name='publish-local-sbt-dists',
-            labels=[WorkUnitLabel.MULTITOOL],
+            labels=[WorkUnitLabel.COMPILER],
         ) as workunit:
 
-          argv = [
-            'sbt',
-            '-sbt-version', self._sbt.version,
+          sbt_version_args = ['-sbt-version', self._sbt.version] if self._sbt.version else []
+
+          argv = ['sbt'] + sbt_version_args + [
             '-java-home', jvm_dist_locator.home,
             '-ivy', self._sbt.local_publish_repo,
             '-batch',

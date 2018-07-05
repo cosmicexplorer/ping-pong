@@ -1,5 +1,7 @@
 package pingpong.ensime
 
+import scala.Predef.{ any2stringadd => _, _ }
+
 import spray.json._
 
 case class SourceRoot(sourceRootPath: String, packagePrefix: String)
@@ -12,7 +14,7 @@ case class Target(
   isTargetRoot: Boolean,
   excludes: Option[Seq[String]],
   id: String,
-  sources: Seq[String],
+  sources: Option[Seq[String]],
   libraries: Seq[String],
   transitive: Boolean,
   isCodeGen: Boolean,
