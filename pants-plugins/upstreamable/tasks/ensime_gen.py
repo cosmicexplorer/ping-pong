@@ -39,7 +39,7 @@ class EnsimeGen(ExportTask, JvmToolTaskMixin):
              default=['-deprecation', '-Xlint:all', '-Xlint:-serial', '-Xlint:-path'],
              help='Options to pass to javac for ensime.')
     register('--output-file', type=str, default='.ensime', advanced=True,
-             help='Relative path to the output path to write the ensime config to.')
+             help='Relative path to the buildroot to write the ensime config to.')
 
     cls.register_jvm_tool(register, 'ensime-server')
 
