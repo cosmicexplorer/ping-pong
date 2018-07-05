@@ -66,6 +66,8 @@ class ServerFeatureTest extends AsyncTwitterFeatureTest {
         Path(checkout.sandboxRootAbsolutePath.get) should equal(checkoutsDirUnderTmp)
         repo should equal(RepoLocation(Some(curRepoRoot.toString)))
         rev should equal(Revision(Some(curSha)))
+
+        // TODO: do a few more git process invokes, check to see if the checkout is correct
       }
   }
 }
