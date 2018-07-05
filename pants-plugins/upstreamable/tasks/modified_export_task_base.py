@@ -43,6 +43,8 @@ class ModifiedExportTaskBase(ExportTask):
 
   # This is copied from the upstream task so we can edit it. This should *really* be broken out into
   # separate methods upstream.
+  # NB: Currently, the only change that is made is to add any classifier to all `M2Coordinate`
+  # calls.
   def generate_targets_map(self, targets, classpath_products=None):
     """Generates a dictionary containing all pertinent information about the target graph.
 
