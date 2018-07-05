@@ -94,7 +94,7 @@ class BootstrapEnsimeGen(Task):
 
       with self.context.new_workunit(
           name='bootstrap-ensime-gen-subproc',
-          labels=[WorkUnitLabel.BOOTSTRAP],
+          labels=[WorkUnitLabel.COMPILER],
           # TODO: replace space join with safe_shlex_join() when #5493 is merged!
           cmd=' '.join(cmd),
       ) as workunit:
