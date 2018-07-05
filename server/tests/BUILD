@@ -1,10 +1,13 @@
 junit_tests(
   dependencies=[
+    '3rdparty/jvm:ammonite-ops',
     '3rdparty/jvm:guice-test-jars',
     '3rdparty/jvm:finatra-thrift',
     '3rdparty/jvm:finatra-thrift-test-jars',
     '3rdparty/jvm:mockito',
     '3rdparty/jvm:scalatest',
+    '3rdparty/jvm:twitter-bijection',
+    'io:io',
     'protocol:repo_backend',
     'repo-backends',
     'server',

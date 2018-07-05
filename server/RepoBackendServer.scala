@@ -1,24 +1,25 @@
 package pingpong.server
 
+import pingpong.io._
 import pingpong.protocol.repo_backend.{
   CheckoutResponse,
   RepoBackend,
   RepoBackendError,
 }
-import pingpong.repo_backends.GitRepoBackend
+import pingpong.repo_backends._
 
+import ammonite.ops._
 import com.twitter.finatra.thrift._
 import com.twitter.finatra.thrift.routing.ThriftRouter
 import com.twitter.inject.Logging
-import com.twitter.util.Future
 
-class RepoBackendController extends Controller with RepoBackend.ServicePerEndpoint {
-  override val getCheckout = handle(RepoBackend.GetCheckout) {
-    args: RepoBackend.GetCheckout.Args =>
-      {
-        // val request = args.request;
-        Future(CheckoutResponse.Error(RepoBackendError(Some("huh"))))
-      }
+import javax.inject.Inject
+
+class RepoBackendController @Inject() (params: GitRepoParams)
+    extends Controller
+    with RepoBackend.ServicePerEndpoint {
+  override val getCheckout = handle(RepoBackend.GetCheckout) { args: RepoBackend.GetCheckout.Args =>
+    new GitRepoBackend(params).getCheckout(args.request)
   }
 }
 
@@ -28,5 +29,3 @@ class RepoBackendServer extends ThriftServer with Logging {
       .add[RepoBackendController]
   }
 }
-
-object RepoBackendServerMain extends RepoBackendServer

@@ -94,6 +94,14 @@ jar_library(
 )
 
 jar_library(
+  name='twitter-bijection',
+  jars=[
+    scala_jar(org='com.twitter', name='bijection-util', rev='0.9.6'),
+  ],
+  scope='compile test',
+)
+
+jar_library(
   name='twitter-util',
   jars=[
     scala_jar(org='com.twitter', name='util-core', rev=TWITTER_JVM_REV,

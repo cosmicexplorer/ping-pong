@@ -52,11 +52,10 @@ sealed trait GitRemote {
 
   def asThrift = RepoLocation(Some(gitRemoteAddress))
 
-  def hashDirname: String
+  def hashDirname: RelPath
 
   private def getOrCreateCloneDir(baseDir: Directory): Future[Path] = Future {
-    val curCloneCachePath = RelPath(hashDirname)
-    val cloneDir = baseDir.path / curCloneCachePath
+    val cloneDir = baseDir.path / hashDirname
     mkdir! cloneDir
     cloneDir
   }
@@ -120,7 +119,7 @@ sealed trait GitRemote {
 case class LocalFilesystemRepo(rootDir: Path) extends GitRemote {
   override protected def gitRemoteAddress: String = rootDir.toString
   override def localDirname: RelPath = RelPath(rootDir.last)
-  override def hashDirname: String = {
+  override def hashDirname: RelPath = {
     val dirJoined = rootDir.segments.reduce((acc, cur) => s"${acc}-${cur}")
     s"local:${dirJoined}"
   }
@@ -159,11 +158,10 @@ case class GitCheckoutRequest(source: GitRemote, revision: GitRevision) {
     Vector("git", "worktree", "add", intoWorktreeDir.toString, revision.sha),
     pwd = cloneResult.dir)
 
-  def hashDirname: String = s"${source.hashDirname}@${revision.sha}"
+  def hashDirname: RelPath = s"${source.hashDirname}@${revision.sha}"
 
   private def getOrCreateWorktreeDir(baseDir: Directory): Future[Path] = Future {
-    val curWorktreeCachePath = RelPath(hashDirname)
-    val worktreeDir = baseDir.path / curWorktreeCachePath
+    val worktreeDir = baseDir.path / hashDirname
     mkdir! worktreeDir
     worktreeDir
   }
