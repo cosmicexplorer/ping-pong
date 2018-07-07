@@ -1,31 +1,35 @@
 #@namespace scala pingpong.protocol.review_backend
 
-include "entities.thrift"
 include "pingpong.thrift"
 include "repo_backend.thrift"
+
+struct CollaborationId {
+  1: optional string cid;
+}
 
 # FIXME: the below line doesn't highlight correctly in `scrooge-mode' because it has a string.
 # Currently, statuses like "is this PR mergeable?" are left to the frontend, which processes the
 # pings from a checkout, according to some set of rules.
-struct CheckedOutCollaboration {
+struct Collaboration {
   # The checkout's revision should be at the HEAD commit of whatever branch/pull request this is.
   1: optional repo_backend.Checkout checkout;
   2: optional pingpong.PingCollection pings;
 }
 
-# It is an application-level error if this is empty.
-typedef list<entities.CollaborationId> ExplicitCollaborationSet
+# This may be empty. Applications should probably throw an error if that happens, because it's
+# likely erroneous.
+typedef list<CollaborationId> CollaborationIdSet
 
-struct CollabsForUser {
-  1: optional entities.UserId user_id;
+struct CollaborationQuery {
+  1: optional CollaborationIdSet collaboration_ids;
 }
 
-union CollaborationQuery {
-  1: ExplicitCollaborationSet explicit_collaboration_set;
-  2: CollabsForUser collabs_for_user;
-}
-
-typedef map<entities.CollaborationId, CheckedOutCollaboration> MatchedCollaborations
+# NB: `CollaborationId` *could* be global (like a git remote), and that would be very neat
+# (we could parse it to determine which backend to route it to).
+# NB: `CollaborationId` instances need not be "global" in any sense -- we just need the
+# `collaboration_id` in `PublishPingsRequest` (or the elements of `ExplicitCollaborationSet`) to
+# match something that was returned to the client in this map.
+typedef map<CollaborationId, Collaboration> MatchedCollaborations
 
 exception ReviewBackendError {
   1: optional string message;
@@ -36,6 +40,11 @@ union QueryCollaborationsResponse {
   2: ReviewBackendError error;
 }
 
+struct PublishPingsRequest {
+  1: optional CollaborationId collaboration_id;
+  2: optional pingpong.PingCollection pings_to_publish;
+}
+
 struct PublishPingsSuccess {}
 
 union PublishPingsResponse {
@@ -44,7 +53,6 @@ union PublishPingsResponse {
 }
 
 service ReviewBackend {
-  # NB: this should also be used to update the ping ids for a collaboration!
   QueryCollaborationsResponse queryCollaborations(1: CollaborationQuery query),
-  PublishPingsResponse publishPings(1: pingpong.PingCollection pings),
+  PublishPingsResponse publishPings(1: PublishPingsRequest request),
 }

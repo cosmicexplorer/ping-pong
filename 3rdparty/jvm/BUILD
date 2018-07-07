@@ -152,8 +152,8 @@ jar_library(
     # We pull everything in intransitively because the version of spray-json used is different than
     # the one we want, but we then need to provide scalaz-ioeffect for the 'api' jar, and others for
     # others.
+    # TODO: are all these necessary?
     scala_jar(org='com.chuusai', name='shapeless', rev='2.3.3'),
-    # scala_jar(org='com.lihaoyi', name='fastparse', rev='0.4.4'),
     scala_jar(org='org.scalaz', name='scalaz-ioeffect', rev='2.5.0'),
   ],
   dependencies=[

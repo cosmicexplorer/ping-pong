@@ -127,14 +127,16 @@ case class LocalFilesystemRepo(rootDir: Path) extends GitRemote {
 }
 
 object GitRemote {
-  def apply(location: RepoLocation): Try[GitRemote] = Try {
-    // NB: we would do any parsing of `backendLocationSpec` (e.g. into a url, file path, etc) here
-    // and return a different implementor of `GitRemote` for different formats of inputs.
-    // Currently, we interpret every string as pointing to a local directory path.
-    location.backendLocationSpec
-      .map(spec => LocalFilesystemRepo(Path(spec)))
-      .head
+  // NB: we would do any parsing of `backendLocationSpec` (e.g. into a url, file path, etc) here
+  // and return a different implementor of `GitRemote` for different formats of inputs.
+  // Currently, we interpret every string as pointing to a local directory path.
+  def apply(location: RepoLocation): Try[GitRemote] = location.backendLocationSpec match {
+    case Some(locationSpec) => GitRemote(locationSpec)
+    case None => Throw(GitInputParseError(
+      s"location ${location} was not provided"))
   }
+
+  def apply(locationSpec: String): Try[GitRemote] = Return(LocalFilesystemRepo(Path(locationSpec)))
 }
 
 case class GitWorktreeBase(dir: Directory)
@@ -153,6 +155,8 @@ case class GitCheckedOutWorktree(
 }
 
 case class GitCheckoutRequest(source: GitRemote, revision: GitRevision) {
+  def asThrift = CheckoutRequest(Some(source.asThrift), Some(revision.asThrift))
+
   private def worktreeCheckoutRequest(
     cloneResult: GitCloneResultLocalDirectory, intoWorktreeDir: Path,
   ) = ExecuteProcessRequest.create(

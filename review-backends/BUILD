@@ -5,5 +5,6 @@ scala_library(
     'protocol:entities',
     'protocol:pingpong',
     'protocol:review_backend',
+    'repo-backends',
   ],
 )

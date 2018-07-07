@@ -40,23 +40,10 @@ struct Ping {
 }
 
 # NB: This is for reading/writing by clients, and *all* `PingId` instances are local to this map!
-typedef map<entities.PingId, Ping> PingCollection
+# TODO: could just use a list here, and make ping ids i32s which index into that list -- that's a
+# perf opportunity for later.
+typedef map<entities.PingId, Ping> PingMap
 
-# TODO: With the use of `PingCollection`, the below is unnecessary. Scrutiny should be determined by
-# the frontend!!!
-# # "scrutiny" as a term and a concept is my interpretation of what is described in
-# # https://blog.janestreet.com/putting-the-i-back-in-ide-towards-a-github-explorer/.
-# enum Scrutiny {
-#   # No approval necessary.
-#   COMMENT = 0,
-#   # Explicit approval is necessary.
-#   REVIEW_REQUEST = 1,
-# }
-
-# # A ping, but directed at you.
-# struct Pong {
-#   # This is for the purposes of the Reply struct above.
-#   1: optional entities.PingId ping_id;
-#   2: optional Ping ping;
-#   3: optional Scrutiny scrutiny;
-# }
+struct PingCollection {
+  1: optional PingMap ping_map;
+}

@@ -16,8 +16,3 @@ struct GroupId {
 struct PingId {
   1: optional string pid;
 }
-
-# E.g. a github pull request, which contains pings and commits.
-struct CollaborationId {
-  1: optional string cid;
-}
