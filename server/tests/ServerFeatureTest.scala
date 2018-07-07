@@ -43,19 +43,21 @@ class ServerFeatureTest extends AsyncTwitterFeatureTest {
       override def overrideModules = Seq(TestEnvironmentModule)
   })
 
-  lazy val client =
-    server.thriftClient[RepoBackend[Future]](clientId = "client123")
+  lazy val client = server.thriftClient[RepoBackend[Future]](clientId = "client123")
 
   lazy val curRepoRoot = Path(%%("git", "rev-parse", "--show-toplevel")(pwd).out.trim)
   lazy val curSha = %%("git", "rev-parse", "HEAD")(pwd).out.trim
 
   // FIXME: make this highlight correctly in ensime!
   testAsync("Server#return an error message") {
-    client.getCheckout(
-      CheckoutRequest(
-        Some(RepoLocation(Some(curRepoRoot.toString))),
-        Some(Revision(Some(curSha)))))
+    val request = CheckoutRequest(
+      Some(RepoLocation(Some(curRepoRoot.toString))),
+      Some(Revision(Some(curSha))))
+
+    client.getCheckout(request)
       .map { case CheckoutResponse.Completed(Checkout(Some(checkout), Some(repo), Some(rev))) =>
+        // TODO: is it kosher to use logic from the `GitRemote` wrapper in this test? Should this be
+        // more "from scratch"?
         val remote = GitRemote(repo).get
         val middleDirname = s"${remote.hashDirname}@${rev.backendRevisionSpec.get}"
         val checkoutsDirUnderTmp = (

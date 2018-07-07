@@ -28,7 +28,7 @@ object GitRevision {
 
   def apply(revision: Revision): Try[GitRevision] = Try {
     revision.backendRevisionSpec
-      .map(GitRevision(_).get())
+      .map(GitRevision(_).get)
       .head
   }
 
@@ -118,20 +118,21 @@ sealed trait GitRemote {
 
 case class LocalFilesystemRepo(rootDir: Path) extends GitRemote {
   override protected def gitRemoteAddress: String = rootDir.toString
-  override def localDirname: RelPath = RelPath(rootDir.last)
+  override def localDirname: RelPath = rootDir.last
   override def hashDirname: RelPath = {
+    // TODO: generic string join method somewhere!
     val dirJoined = rootDir.segments.reduce((acc, cur) => s"${acc}-${cur}")
     s"local:${dirJoined}"
   }
 }
 
 object GitRemote {
-  def apply(location: RepoLocation): Try[GitRemote] = {
+  def apply(location: RepoLocation): Try[GitRemote] = Try {
     // NB: we would do any parsing of `backendLocationSpec` (e.g. into a url, file path, etc) here
     // and return a different implementor of `GitRemote` for different formats of inputs.
     // Currently, we interpret every string as pointing to a local directory path.
     location.backendLocationSpec
-      .map(spec => Return(LocalFilesystemRepo(Path(spec))))
+      .map(spec => LocalFilesystemRepo(Path(spec)))
       .head
   }
 }

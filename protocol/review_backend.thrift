@@ -74,6 +74,7 @@ service ReviewBackend {
   QueryCollaborationsResponse queryCollaborations(1: CollaborationQuery query),
   PublishPingsResponse publishPings(1: PingSet pings),
   LookupPingsResponse lookupPings(1: PingIdSet ping_ids),
+  # FIXME: the below line doesn't highlight correctly in `scrooge-mode' because it has a string.
   # Currently, statuses like "is this PR mergeable?" are left to the frontend, which processes the
   # result of this method.
   QueryPongsResponse queryPongs(1: PongsQuery query),
