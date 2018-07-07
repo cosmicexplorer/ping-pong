@@ -5,6 +5,8 @@ A "code review" system that tries to inspire more lightweight back-and-forth.
 
 # TODO
 
+- *when this is more complete, keep a running tally of the software this heavily depends on (e.g. git) and put them in a list near the TOP of this readme -- it could be a nice way to say thanks + lead people to documentation for those tools, which will help when using this tool (if this tool doesn't virtualize any of them too much)*
+
 ## MVP
 
 - [ ] git-notes backend for whatever the heck a *ping* is
