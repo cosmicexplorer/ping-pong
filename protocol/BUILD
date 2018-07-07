@@ -38,4 +38,7 @@ custom_scrooge_java_thrift_library(
   dependencies=[
     ':pingpong',
   ],
+  exports=[
+    ':pingpong',
+  ],
 )

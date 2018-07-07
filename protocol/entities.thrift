@@ -1,14 +1,17 @@
-#@namespace scala pingpong.protocol.user
+#@namespace scala pingpong.protocol.entities
 
-# A 64-bit signed integer is uniformly used in this file for a key into some abstract backend data
-# store.
-typedef i64 UserId
+# A string is uniformly used in this file for a key into some abstract backend data store.
+typedef string UserId
 
 # Should be used to represent a selection of users (including a single user), while UserId is for
 # e.g. identifying the author.
-typedef i64 GroupId
+typedef string GroupId
 
-typedef i64 PingId
+typedef string PingId
 
 # E.g. a github pull request, which contains pings and commits.
-typedef i64 CollaborationId
+typedef string CollaborationId
+
+# FIXME: thrift/scrooge doesn't generate a namespace for this file unless we have at least one
+# struct or something besides a typedef.
+struct _AStruct {}

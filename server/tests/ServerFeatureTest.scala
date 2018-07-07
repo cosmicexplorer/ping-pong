@@ -33,6 +33,7 @@ object TestEnvironmentModule extends TwitterModule {
 }
 
 abstract class AsyncTwitterFeatureTest extends AsyncFunSuite with FeatureTestMixin {
+  // `AsyncFunSuite` requires a scala `Future`, so we convert it to one here with the bijection lib.
   def testAsync(msg: String)(f: => Future[org.scalatest.compatible.Assertion]) =
     test(msg)(f.as[scala.concurrent.Future[org.scalatest.compatible.Assertion]])
 }
