@@ -96,6 +96,18 @@ class GitNotesReviewBackend(gitRepo: GitRepoBackend) extends ReviewBackend.Metho
     checkout: Checkout
   ): Future[PingCollection] = Future(PingCollection(Some(Map.empty)))
 
+  def getCollaboration(collabRequest: GitNotesCollaborationRequest): Future[Collaboration] = {
+    gitRepo.getCheckout(collabRequest.asCheckoutRequest.asThrift).flatMap {
+      case CheckoutResponse.Error(err) => Future.const(Throw(
+        GitRepoCommunicationError(s"error checking out ${collabRequest}", err)))
+      case x: CheckoutResponse.UnknownUnionField => Future.const(Throw(
+        GitCollaborationResolutionError(
+          s"error checking out ${collabRequest}: unknown union for checkout response ${x}")))
+      case CheckoutResponse.Completed(checkout) => pingsForCollaboration(collabRequest, checkout)
+          .map(pings => Collaboration(Some(checkout), Some(pings)))
+    }
+  }
+
   override def queryCollaborations(
     query: CollaborationQuery
   ): Future[QueryCollaborationsResponse] = {
@@ -109,23 +121,12 @@ class GitNotesReviewBackend(gitRepo: GitRepoBackend) extends ReviewBackend.Metho
     // Collect the `Try`s and fail early if parsing any of the collaboration requests fails.
     val collabRequests = collabIds.flatMap(ids => Future.collect(ids.map { cid =>
       Future.const(GitNotesCollaborationRequest(cid))
-        .map((cid, _))
-    }))
-    val collabResults = collabRequests.flatMap(reqs => Future.collect(reqs.map {
-      case (cid, collabReq) => gitRepo.getCheckout(collabReq.asCheckoutRequest.asThrift).flatMap {
-        case CheckoutResponse.Error(err) => Future.const(Throw(
-          GitRepoCommunicationError(s"error checking out ${cid}", err)))
-        case x: CheckoutResponse.UnknownUnionField => Future.const(Throw(
-          GitCollaborationResolutionError(
-            s"error checking out ${cid}: unknown union for checkout response ${x}")
-        ))
-        case CheckoutResponse.Completed(checkout) => pingsForCollaboration(collabReq, checkout)
-            .map(pings => (cid, Collaboration(Some(checkout), Some(pings))))
-      }
-    }))
+        // Convert to a mapping of `MatchedCollaborations`.
+        .map(cid -> _)
+    }).map(_.toMap))
 
-    collabResults
-      .map(idCollabs => QueryCollaborationsResponse.MatchedCollaborations(idCollabs.toMap))
+    collabRequests.flatMap(reqs => Future.collect(reqs.mapValues(getCollaboration)))
+      .map(idCollabs => QueryCollaborationsResponse.MatchedCollaborations(idCollabs))
       .rescue { case e => Future {
         QueryCollaborationsResponse.Error(ReviewBackendError(Some(e.toString)))
       }}
