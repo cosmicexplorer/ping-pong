@@ -36,7 +36,7 @@ object GitRevision {
     maxLengthShaPattern.findFirstIn(sha) match {
       case Some(validRevisionSpec) => Return(new GitRevision(validRevisionSpec))
       case None => Throw(GitInputParseError(
-        s"invalid revision ${sha}: string must exist and match ${maxLengthShaPattern}"))
+        s"invalid revision ${sha}: string must be provided and match ${maxLengthShaPattern}"))
     }
   }
 }

@@ -1,5 +1,7 @@
 scala_library(
   dependencies=[
+    '3rdparty/jvm:twitter-util',
+    'parsing',
     'protocol:entities',
     'protocol:pingpong',
     'protocol:review_backend',

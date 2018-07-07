@@ -16,6 +16,9 @@ struct LineRangeForFile {
 struct FileWithRange {
   1: optional RepoFile file;
   # If not provided, the whole file is assumed.
+  # This will be interpreted as just the beginning of the specified range, if the review backend
+  # only supports tracking comments at a single location, instead of spanning multiple lines (all of
+  # them, except our git notes backend).
   2: optional LineRangeForFile line_range_in_file;
 }
 

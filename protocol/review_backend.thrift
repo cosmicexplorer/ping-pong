@@ -4,12 +4,13 @@ include "entities.thrift"
 include "pingpong.thrift"
 include "repo_backend.thrift"
 
-typedef list<entities.PingId> PingIdSet
-
-struct Collaboration {
-  1: optional repo_backend.RevisionRange revision_range;
-  2: optional repo_backend.Revision head_revision;
-  3: optional PingIdSet owned_ping_ids;
+# FIXME: the below line doesn't highlight correctly in `scrooge-mode' because it has a string.
+# Currently, statuses like "is this PR mergeable?" are left to the frontend, which processes the
+# pings from a checkout, according to some set of rules.
+struct CheckedOutCollaboration {
+  # The checkout's revision should be at the HEAD commit of whatever branch/pull request this is.
+  1: optional repo_backend.Checkout checkout;
+  2: optional pingpong.PingCollection pings;
 }
 
 # It is an application-level error if this is empty.
@@ -24,7 +25,7 @@ union CollaborationQuery {
   2: CollabsForUser collabs_for_user;
 }
 
-typedef map<entities.CollaborationId, Collaboration> MatchedCollaborations
+typedef map<entities.CollaborationId, CheckedOutCollaboration> MatchedCollaborations
 
 exception ReviewBackendError {
   1: optional string message;
@@ -35,47 +36,15 @@ union QueryCollaborationsResponse {
   2: ReviewBackendError error;
 }
 
-typedef list<pingpong.Ping> PingSet
+struct PublishPingsSuccess {}
 
 union PublishPingsResponse {
-  1: PingIdSet ping_id_set;
-  2: ReviewBackendError error;
-}
-
-union LookupPingsResponse {
-  1: PingSet ping_set;
-  2: ReviewBackendError error;
-}
-
-struct CollaborationHunk {
-  1: optional entities.CollaborationId collaboration_id;
-  # The application should use all pings with a WholeRepo location if the result of expanding the
-  # HunkGlobs is empty, or if no HunkGlobs are provided.
-  2: optional repo_backend.HunkGlobs hunk_globs;
-}
-
-# It is an application-level error if this is empty.
-typedef list<CollaborationHunk> CollaborationGlobs
-
-union PongsQuery {
-  1: CollaborationGlobs collaboration_globs;
-  2: CollabsForUser collabs_for_user;
-}
-
-typedef list<pingpong.Pong> PongSet
-
-union QueryPongsResponse {
-  1: PongSet pong_set;
+  1: PublishPingsSuccess success;
   2: ReviewBackendError error;
 }
 
 service ReviewBackend {
   # NB: this should also be used to update the ping ids for a collaboration!
   QueryCollaborationsResponse queryCollaborations(1: CollaborationQuery query),
-  PublishPingsResponse publishPings(1: PingSet pings),
-  LookupPingsResponse lookupPings(1: PingIdSet ping_ids),
-  # FIXME: the below line doesn't highlight correctly in `scrooge-mode' because it has a string.
-  # Currently, statuses like "is this PR mergeable?" are left to the frontend, which processes the
-  # result of this method.
-  QueryPongsResponse queryPongs(1: PongsQuery query),
+  PublishPingsResponse publishPings(1: pingpong.PingCollection pings),
 }
