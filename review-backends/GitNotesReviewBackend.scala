@@ -22,7 +22,7 @@ class GitNotesReviewBackend(repoParams: GitRepoParams) extends ReviewBackend.Met
     request: PublishPingsRequest
   ): Future[PublishPingsResponse] = GitNotesPublishPingsRequest(request)
     .constFuture
-    .flatMap(_.publish.map(pings => PublishPingsResponse.PublishedPings(pings.asThrift)))
+    .flatMap(_.publish(repoParams).map(pings => PublishPingsResponse.PublishedPings(pings.asThrift)))
     .rescue { case e => Future {
       PublishPingsResponse.Error(ReviewBackendError(Some(e.toString)))
     }}

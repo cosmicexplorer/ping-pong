@@ -36,13 +36,8 @@ struct Hunk {
 
 typedef list<Hunk> HunkCollection
 
-# Used to represent comments not tied to a specific file or set of files (e.g. github PR comments in
-# the main thread).
-struct WholeRepo {}
-
-union PingLocation {
-  1: HunkCollection hunk_collection;
-  2: WholeRepo whole_repo;
+struct PingLocation {
+  1: optional HunkCollection hunk_collection;
 }
 
 # E.g. a git commit range.
