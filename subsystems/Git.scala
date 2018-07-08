@@ -6,6 +6,7 @@ import pingpong.io.PathExt._
 import pingpong.io.ProcessExt._
 import pingpong.parsing._
 import pingpong.parsing.Regex._
+import pingpong.parsing.ThriftExt._
 import pingpong.protocol.entities._
 import pingpong.protocol.pingpong._
 import pingpong.protocol.repo_backend._

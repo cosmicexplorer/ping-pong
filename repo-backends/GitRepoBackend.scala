@@ -1,6 +1,8 @@
 package pingpong.repo_backends
 
 import pingpong.protocol.repo_backend._
+import pingpong.parsing._
+import pingpong.parsing.ThriftExt._
 import pingpong.subsystems._
 
 import com.twitter.util.Future
