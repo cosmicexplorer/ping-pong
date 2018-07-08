@@ -29,7 +29,11 @@ struct CollaborationQuery {
 # NB: `CollaborationId` instances need not be "global" in any sense -- we just need the
 # `collaboration_id` in `PublishPingsRequest` (or the elements of `ExplicitCollaborationSet`) to
 # match something that was returned to the client in this map.
-typedef map<CollaborationId, Collaboration> MatchedCollaborations
+typedef map<CollaborationId, Collaboration> CollaborationMap
+
+struct MatchedCollaborations {
+  1: optional CollaborationMap collaborations;
+}
 
 exception ReviewBackendError {
   1: optional string message;
@@ -40,15 +44,15 @@ union QueryCollaborationsResponse {
   2: ReviewBackendError error;
 }
 
+typedef list<pingpong.Ping> PublishPingSet
+
 struct PublishPingsRequest {
   1: optional CollaborationId collaboration_id;
-  2: optional pingpong.PingCollection pings_to_publish;
+  2: optional PublishPingSet pings_to_publish;
 }
 
-struct PublishPingsSuccess {}
-
 union PublishPingsResponse {
-  1: PublishPingsSuccess success;
+  1: pingpong.PingCollection published_pings;
   2: ReviewBackendError error;
 }
 

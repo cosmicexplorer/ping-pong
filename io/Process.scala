@@ -2,7 +2,8 @@ package pingpong.io
 
 import com.twitter.scrooge.{ThriftStruct, ThriftStructCodec}
 import com.twitter.util.{Throw, Future}
-import org.apache.thrift.protocol.TBinaryProtocol
+// TODO: turn this to `TBinaryProtocol`? When? What about JSON?
+import org.apache.thrift.protocol.TTupleProtocol
 import org.apache.thrift.transport.TIOStreamTransport
 
 import scala.sys.process.{BasicIO, ProcessIO, ProcessLogger, ProcessBuilder}
@@ -39,7 +40,7 @@ object ProcessExt {
         in = inputFun,
         out = { outStream =>
           val thriftStreamOutput = new TIOStreamTransport(outStream)
-          val binaryProtocol = new TBinaryProtocol(thriftStreamOutput)
+          val binaryProtocol = new TTupleProtocol(thriftStreamOutput)
           thriftStruct = Some(codec.decode(binaryProtocol))
           outStream.close()
         },
@@ -93,9 +94,9 @@ object ProcessExt {
   }
 
   implicit class WrappedThriftStruct[T <: ThriftStruct](thriftObj: T) {
-    def toBinaryStdin: ProcessInputProcessor = { processStdin =>
+    def toPlaintextStdin: ProcessInputProcessor = { processStdin =>
       val thriftStreamInput = new TIOStreamTransport(processStdin)
-      val binaryProtocol = new TBinaryProtocol(thriftStreamInput)
+      val binaryProtocol = new TTupleProtocol(thriftStreamInput)
       thriftObj.write(binaryProtocol)
       processStdin.close()
     }

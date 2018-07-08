@@ -1,26 +1,29 @@
 package pingpong.review_backends
 
-import pingpong.io._
-import pingpong.parsing.Regex._
-import pingpong.protocol.entities._
-import pingpong.protocol.pingpong._
-import pingpong.protocol.repo_backend._
+import pingpong.io.FutureTryExt._
 import pingpong.protocol.review_backend._
-import pingpong.repo_backends._
 import pingpong.subsystems._
 
-import com.twitter.util.{Try, Return, Throw, Future}
+import com.twitter.util.Future
 
 class GitNotesReviewBackend(repoParams: GitRepoParams) extends ReviewBackend.MethodPerEndpoint {
   override def queryCollaborations(
     query: CollaborationQuery
-  ): Future[QueryCollaborationsResponse] = Future.const(GitNotesCollaborationQuery(query))
-    .flatMap(_.invoke(repoParams))
+  ): Future[QueryCollaborationsResponse] = GitNotesCollaborationQuery(query)
+    .constFuture
+    .flatMap(_.invoke(repoParams).map { matchedCollabs =>
+      QueryCollaborationsResponse.MatchedCollaborations(matchedCollabs.asThrift)
+    })
     .rescue { case e => Future {
       QueryCollaborationsResponse.Error(ReviewBackendError(Some(e.toString)))
     }}
 
-  override def publishPings(request: PublishPingsRequest): Future[PublishPingsResponse] = Future {
-    PublishPingsResponse.Success(PublishPingsSuccess())
-  }
+  override def publishPings(
+    request: PublishPingsRequest
+  ): Future[PublishPingsResponse] = GitNotesPublishPingsRequest(request)
+    .constFuture
+    .flatMap(_.publish.map(pings => PublishPingsResponse.PublishedPings(pings.asThrift)))
+    .rescue { case e => Future {
+      PublishPingsResponse.Error(ReviewBackendError(Some(e.toString)))
+    }}
 }

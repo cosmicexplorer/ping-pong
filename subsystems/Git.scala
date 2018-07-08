@@ -262,7 +262,7 @@ case class GitNotesPingEntry(objHash: GitObjectHash, ping: Ping) {
 object GitNotesPingEntry {
   def apply(checkout: GitCheckedOutWorktree, ping: Ping): Future[GitNotesPingEntry] = {
     Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = checkout.dir.asFile)
-      .executeForOutput(ping.toBinaryStdin)
+      .executeForOutput(ping.toPlaintextStdin)
       .flatMap(output => GitObjectHash(output.stdout.trim).constFuture)
       .map(GitNotesPingEntry(_, ping))
   }
@@ -390,14 +390,27 @@ case class GitNotesCollaboration(checkout: GitCheckedOutWorktree, pings: GitNote
   def asThrift = Collaboration(Some(checkout.asThrift), Some(pings.asThrift))
 }
 
+case class GitNotesCollaborationEntry(
+  collabId: GitNotesCollaborationId, collab: GitNotesCollaboration
+)
+
+case class GitNotesMatchedCollaborations(collabs: Seq[GitNotesCollaborationEntry]) {
+  def asThrift = {
+    val collabResults = collabs.map {
+      case GitNotesCollaborationEntry(cid, collab) => (cid.asThrift -> collab.asThrift)
+    }.toMap
+
+    MatchedCollaborations(Some(collabResults))
+  }
+}
 
 case class GitNotesCollaborationQuery(collabIds: Seq[GitNotesCollaborationId]) {
-  def invoke(params: GitRepoParams): Future[QueryCollaborationsResponse] = {
+  def invoke(params: GitRepoParams): Future[GitNotesMatchedCollaborations] = {
     val collabs = collabIds.map { cid =>
-      cid.getCollaboration(params).map((cid.asThrift -> _.asThrift))
+      cid.getCollaboration(params).map(GitNotesCollaborationEntry(cid, _))
     }.collectFutures
 
-    collabs.map(idTuples => QueryCollaborationsResponse.MatchedCollaborations(idTuples.toMap))
+    collabs.map(GitNotesMatchedCollaborations(_))
   }
 }
 
@@ -410,6 +423,27 @@ object GitNotesCollaborationQuery {
       ))
       case x => Try.collect(x.map(GitNotesCollaborationId(_)))
           .map(GitNotesCollaborationQuery(_))
+    }
+  }
+}
+
+case class GitNotesPublishPingsRequest(
+  collabId: GitNotesCollaborationId,
+  pingsToPublish: Seq[Ping],
+) {
+  def publish: Future[GitNotesPingCollection] = ???
+}
+
+object GitNotesPublishPingsRequest {
+  def apply(request: PublishPingsRequest): Try[GitNotesPublishPingsRequest] = {
+    val collabId = request.collaborationId.map(GitNotesCollaborationId(_)).getOrElse(Throw(
+      GitThriftParseError(s"request ${request} must provide a collaboration id")
+    ))
+    val publishPingSet = request.pingsToPublish.map(Return(_)).getOrElse(Throw(
+      GitThriftParseError(s"request ${request} must provide a list of pings to publish")))
+
+    collabId.join(publishPingSet).map {
+      case (cid, pings) => GitNotesPublishPingsRequest(cid, pings)
     }
   }
 }
