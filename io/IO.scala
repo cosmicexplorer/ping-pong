@@ -5,15 +5,26 @@ import ammonite.ops._
 // there's a good async file i/o library for the JVM (how???). We may need to create it.
 import com.twitter.util.Future
 
-case class IOError(message: String) extends RuntimeException(message)
+import java.io.{File => JFile}
 
 sealed trait IOEntity {
   def asStringPath: String
+  def asFile: JFile
 }
+
+object PathExt {
+  implicit class WrappedPath(path: Path) extends IOEntity {
+    override def asStringPath: String = path.toString
+    override def asFile: JFile = path.toIO
+  }
+}
+
+case class IOError(message: String) extends RuntimeException(message)
 
 // This is an existing directory.
 case class Directory(path: Path) extends IOEntity {
   override def asStringPath: String = path.toString
+  override def asFile: JFile = path.toIO
 }
 
 object Directory {
@@ -37,4 +48,5 @@ object Directory {
 
 case class File(path: Path) extends IOEntity {
   override def asStringPath: String = path.toString
+  override def asFile: JFile = path.toIO
 }

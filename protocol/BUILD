@@ -19,21 +19,21 @@ custom_scrooge_java_thrift_library(
   sources=['pingpong.thrift'],
   dependencies=[
     ':notifications',
-    ':repo_backend',
+    ':repo-backend',
   ],
   exports=[
     ':notifications',
-    ':repo_backend',
+    ':repo-backend',
   ],
 )
 
 custom_scrooge_java_thrift_library(
-  name='repo_backend',
+  name='repo-backend',
   sources=['repo_backend.thrift'],
 )
 
 custom_scrooge_java_thrift_library(
-  name='review_backend',
+  name='review-backend',
   sources=['review_backend.thrift'],
   dependencies=[
     ':pingpong',

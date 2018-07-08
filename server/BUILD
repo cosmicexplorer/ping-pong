@@ -5,7 +5,7 @@ scala_library(
     '3rdparty/jvm:guice',
     '3rdparty/jvm:slf4j-impl',
     'io:io',
-    'protocol:repo_backend',
+    'protocol:repo-backend',
     'repo-backends',
   ]
 )
