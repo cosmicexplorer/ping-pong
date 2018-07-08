@@ -307,29 +307,38 @@ case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisi
       .flatMap(_.stdoutLines.map(GitRevision(_).constFuture).collectFutures)
   }
 
+  private def getNotesObjects(
+    revsInRange: Set[GitRevision],
+    lines: Seq[String]
+  ): Try[Seq[GitObjectHash]] = {
+    val notesTries: Seq[Try[Option[GitObjectHash]]] = lines.map {
+      case GitCheckoutPingSpan.notesListLine(notesRef, commitRef) => {
+        GitObjectHash(notesRef).join(GitRevision(commitRef)).map {
+          case (notesObj, commitRev) => if (revsInRange(commitRev)) { Some(notesObj) } else None
+        }
+      }
+      case line => Throw(GitNotesListParseError(
+        s"line ${line} of git notes list output could not be parsed: " +
+          s"must match ${GitCheckoutPingSpan.notesListLine}"))
+    }
+    notesTries.collectTries.map(_.flatten)
+  }
+
+  private def getPingEntry(obj: GitObjectHash): Future[GitNotesPingEntry] = {
+    Process(Seq("git", "show", obj.asCommandArg), cwd = checkout.dir.asFile)
+      .executeForThriftStruct[Ping, Ping.type](Ping)
+      .map(GitNotesPingEntry(obj, _))
+  }
+
   // TODO: have a global notes db so we don't have to list every note in the current repo, then
   // parse it as we do here. This is definitely fine for now.
   def getPings: Future[GitNotesPingCollection] = allRevisionsInRange.map(_.toSet).flatMap { revs =>
     Process(Seq("git", "notes", "list"), cwd = checkout.dir.asFile)
       .executeForOutput
-      .flatMap { out =>
-        val notesTries: Seq[Try[Option[GitObjectHash]]] = out.stdoutLines.map {
-          case GitCheckoutPingSpan.notesListLine(notesRef, commitRef) => {
-            GitObjectHash(notesRef).join(GitRevision(commitRef)).map {
-              case (notesObj, commitRev) => if (revs(commitRev)) { Some(notesObj) } else None
-            }
-          }
-          case line => Throw(GitNotesListParseError(
-            s"line ${line} of git notes list output could not be parsed: " +
-              s"must match ${GitCheckoutPingSpan.notesListLine}"))
-        }
-        val notesObjects = notesTries.collectTries.map(_.flatMap(_.toSeq))
-        val pingEntries = Future.const(notesObjects).flatMap(_.map { obj =>
-          Process(Seq("git", "show", obj.asCommandArg), cwd = checkout.dir.asFile)
-            .executeForThriftStruct[Ping, Ping.type](Ping)
-            .map(GitNotesPingEntry(obj, _))
-        }.collectFutures)
-        pingEntries.map(GitNotesPingCollection(_))
+      .flatMap { out => getNotesObjects(revs, out.stdoutLines)
+        .constFuture
+        .flatMap(_.map(getPingEntry).collectFutures)
+        .map(GitNotesPingCollection(_))
       }
   }
 }
