@@ -17,7 +17,7 @@ import com.twitter.util.{Await, Future}
 import org.scalatest._
 
 object TestEnvironmentModule extends TwitterModule {
-  lazy val tempDirBase = tmp.dir()
+  lazy val tempDirBase = tmp.dir(deleteOnExit = true)
 
   @Singleton
   @Provides

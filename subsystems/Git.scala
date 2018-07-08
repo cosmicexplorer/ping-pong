@@ -282,8 +282,6 @@ case class GitRevisionRange(begin: GitRevision, end: GitRevision) extends GitCom
 object GitRevisionRange {
   val maxLengthShaRange = rx"\A([0-9a-f]{40})\.\.([0-9a-f]{40})\Z"
 
-  val notesListLine = rx"\A([0-9a-f]{40}) ([0-9a-f]{40})\Z"
-
   def apply(range: RevisionRange): Try[GitRevisionRange] = range.backendRevisionRangeSpec
     .map(GitRevisionRange(_))
     .getOrElse(Throw(GitInputParseError(
@@ -300,38 +298,44 @@ object GitRevisionRange {
   }
 }
 
+case class GitNotesListParseError(message: String) extends GitError(message)
+
 case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisionRange) {
-  private def getAllRevisionsInRange: Future[Seq[GitRevision]] = {
+  private def allRevisionsInRange: Future[Seq[GitRevision]] = {
     Process(Seq("git", "log", "--pretty=format:%H", range.asCommandArg), cwd = checkout.dir.asFile)
       .executeForOutput
       .flatMap(_.stdoutLines.map(GitRevision(_).constFuture).collectFutures)
   }
 
-  def getPings: Future[GitNotesPingCollection] = ???
+  // TODO: have a global notes db so we don't have to list every note in the current repo, then
+  // parse it as we do here. This is definitely fine for now.
+  def getPings: Future[GitNotesPingCollection] = allRevisionsInRange.map(_.toSet).flatMap { revs =>
+    Process(Seq("git", "notes", "list"), cwd = checkout.dir.asFile)
+      .executeForOutput
+      .flatMap { out =>
+        val notesTries: Seq[Try[Option[GitObjectHash]]] = out.stdoutLines.map {
+          case GitCheckoutPingSpan.notesListLine(notesRef, commitRef) => {
+            GitObjectHash(notesRef).join(GitRevision(commitRef)).map {
+              case (notesObj, commitRev) => if (revs(commitRev)) { Some(notesObj) } else None
+            }
+          }
+          case line => Throw(GitNotesListParseError(
+            s"line ${line} of git notes list output could not be parsed: " +
+              s"must match ${GitCheckoutPingSpan.notesListLine}"))
+        }
+        val notesObjects = notesTries.collectTries.map(_.flatMap(_.toSeq))
+        val pingEntries = Future.const(notesObjects).flatMap(_.map { obj =>
+          Process(Seq("git", "show", obj.asCommandArg), cwd = checkout.dir.asFile)
+            .executeForThriftStruct[Ping, Ping.type](Ping)
+            .map(GitNotesPingEntry(obj, _))
+        }.collectFutures)
+        pingEntries.map(GitNotesPingCollection(_))
+      }
+  }
+}
 
-  // def getPings: Future[GitNotesPingCollection] = {
-  //   // TODO: have a global notes db so we don't have to list every note in the current repo, then
-  //   // parse it as we do here. This is definitely fine for now.
-  //   val allRevisions = getAllRevisionsInRange.toSet
-  //   Process(Seq("git", "notes", "list"), cwd = checkout.dir.asFile)
-  //     .executeForOutput
-  //     .flatMap { out =>
-  //       val notesObjects = out.stdoutLines.flatMap {
-  //         case notesListLine(notesRef, commitRef) => {
-  //           GitObjectHash(notesRef).join(GitRevision(commitRef)).map {
-  //             case (notesObj, commitRev) => if (allRevisions(commitRev)) {
-  //               Some(notesObj)
-  //             } else None
-  //           }
-  //         }
-  //         case _ => None
-  //       }
-  //       notesObjects.map { obj =>
-  //         Process(Seq("git", "show", obj.asCommandArg), cwd = checkout.dir.asFile)
-  //           .executeForOutput
-  //       }
-  //     }
-  // }
+object GitCheckoutPingSpan {
+  val notesListLine = rx"\A([0-9a-f]{40}) ([0-9a-f]{40})\Z"
 }
 
 // TODO: we would probably want to allow more than just a SHA range, otherwise we'd need a new

@@ -1,13 +1,13 @@
 package pingpong.io
 
-import com.twitter.scrooge.ThriftStruct
+import com.twitter.scrooge.{ThriftStruct, ThriftStructCodec}
 import com.twitter.util.{Throw, Future}
 import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.transport.TIOStreamTransport
 
-import scala.sys.process.{BasicIO, ProcessLogger, ProcessBuilder}
+import scala.sys.process.{BasicIO, ProcessIO, ProcessLogger, ProcessBuilder}
 
-import java.io.{ByteArrayInputStream, OutputStream}
+import java.io.{ByteArrayOutputStream, OutputStream}
 
 class ProcessError(message: String, base: Throwable) extends RuntimeException(message, base) {
   def this(message: String) = this(message, null)
@@ -27,15 +27,39 @@ object ProcessExt {
 
   case class OutputStrings(stdout: String, stderr: String) {
     def stdoutLines: Seq[String] = stdout.trim.split("\n").toSeq
-    // def stdoutThrift[T <: ThriftStruct]: T = {
-    //   val byteStream = new ByteArrayInputStream()
-    // }
   }
 
   implicit class WrappedProcess(scalaProc: ProcessBuilder) {
-    def executeForThriftStruct[T <: ThriftStruct](
-      implicit inputFun: ProcessInputProcessor
-    ): Future[T] = ???
+    def executeForThriftStruct[T <: ThriftStruct, TCompanion <: ThriftStructCodec[T]](
+      codec: TCompanion
+    )(implicit inputFun: ProcessInputProcessor): Future[T] = {
+      var thriftStruct: Option[T] = None
+      var stderr: Option[String] = None
+      val procIO = new ProcessIO(
+        in = inputFun,
+        out = { outStream =>
+          val thriftStreamOutput = new TIOStreamTransport(outStream)
+          val binaryProtocol = new TBinaryProtocol(thriftStreamOutput)
+          thriftStruct = Some(codec.decode(binaryProtocol))
+          outStream.close()
+        },
+        err = { errStream =>
+          val byteOutStream = new ByteArrayOutputStream()
+          BasicIO.transferFully(errStream, byteOutStream)
+          stderr = Some(byteOutStream.toString)
+          errStream.close()
+        })
+      val exitStatus = Future { scalaProc.run(procIO).exitValue }
+
+      exitStatus.flatMap {
+        case 0 => thriftStruct.map(Future(_)).get
+        case rc => Future.const(Throw(ProcessErrorDuringExecution(
+          s"Execution of process ${this} to produce a thrift struct ${thriftStruct} " +
+            s"failed with code ${rc}.\n\n" +
+            s"stderr:\n${stderr.get}"
+        )))
+      }
+    }
 
     // NB: We don't have a separate method to execute closing all output streams so that we can rely
     // on having the output in the error message if the exit code is nonzero.
@@ -51,6 +75,7 @@ object ProcessExt {
       // stdin.
       val procIO = BasicIO(withIn = false, log = procLogger).withInput(inputFun)
       val exitStatus = Future { scalaProc.run(procIO).exitValue }
+
       exitStatus.flatMap { rc =>
         val allOutput = OutputStrings(
           stdout = stdoutBuilder.toString,
