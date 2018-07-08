@@ -7,9 +7,10 @@ junit_tests(
     '3rdparty/jvm:mockito',
     '3rdparty/jvm:scalatest',
     '3rdparty/jvm:twitter-bijection',
-    'io:io',
+    'io',
     'protocol:repo-backend',
     'repo-backends',
     'server',
+    'subsystems',
   ],
 )

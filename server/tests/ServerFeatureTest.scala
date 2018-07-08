@@ -4,6 +4,7 @@ import pingpong.io._
 import pingpong.repo_backends._
 import pingpong.protocol.repo_backend._
 import pingpong.server.RepoBackendServer
+import pingpong.subsystems.{GitRepoParams, GitRemote, GitCloneBase, GitWorktreeBase}
 
 import ammonite.ops._
 import com.google.inject.{Provides, Singleton}

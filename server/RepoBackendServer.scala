@@ -7,6 +7,7 @@ import pingpong.protocol.repo_backend.{
   RepoBackendError,
 }
 import pingpong.repo_backends._
+import pingpong.subsystems.GitRepoParams
 
 import ammonite.ops._
 import com.twitter.finatra.thrift._

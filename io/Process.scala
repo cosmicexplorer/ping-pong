@@ -7,7 +7,7 @@ import org.apache.thrift.transport.TIOStreamTransport
 
 import scala.sys.process.{BasicIO, ProcessLogger, ProcessBuilder}
 
-import java.io.OutputStream
+import java.io.{ByteArrayInputStream, OutputStream}
 
 class ProcessError(message: String, base: Throwable) extends RuntimeException(message, base) {
   def this(message: String) = this(message, null)
@@ -25,9 +25,18 @@ object ProcessExt {
 
   implicit val closedStdin: ProcessInputProcessor = _.close()
 
-  case class OutputStrings(stdout: String, stderr: String)
+  case class OutputStrings(stdout: String, stderr: String) {
+    def stdoutLines: Seq[String] = stdout.trim.split("\n").toSeq
+    // def stdoutThrift[T <: ThriftStruct]: T = {
+    //   val byteStream = new ByteArrayInputStream()
+    // }
+  }
 
   implicit class WrappedProcess(scalaProc: ProcessBuilder) {
+    def executeForThriftStruct[T <: ThriftStruct](
+      implicit inputFun: ProcessInputProcessor
+    ): Future[T] = ???
+
     // NB: We don't have a separate method to execute closing all output streams so that we can rely
     // on having the output in the error message if the exit code is nonzero.
     def executeForOutput(implicit inputFun: ProcessInputProcessor): Future[OutputStrings] = {

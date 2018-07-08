@@ -1,6 +1,7 @@
 package pingpong.subsystems
 
 import pingpong.io._
+import pingpong.io.FutureTryExt._
 import pingpong.io.PathExt._
 import pingpong.io.ProcessExt._
 import pingpong.parsing.Regex._
@@ -20,7 +21,15 @@ class GitError(message: String, base: Throwable) extends RuntimeException(messag
 
 case class GitObjectHashParseError(message: String) extends GitError(message)
 
-case class GitObjectHash(checksum: String)
+// TODO: document this! Right now it's basically "an unambiguous string that can be passed directly
+// into the git command line".
+trait GitCommandArgument {
+  def asCommandArg: String
+}
+
+case class GitObjectHash(checksum: String) extends GitCommandArgument {
+  override def asCommandArg: String = checksum
+}
 
 object GitObjectHash {
   val maxLengthShaPattern = rx"\A[0-9a-f]{40}\Z"
@@ -33,21 +42,19 @@ object GitObjectHash {
 
 case class GitThriftParseError(message: String) extends GitError(message)
 
-trait GitCommandArgument {
-  def asCommandArg: String
-}
-
 case class GitRevision(objHash: GitObjectHash) extends GitCommandArgument {
   def asThrift = Revision(Some(objHash.checksum))
 
-  override def asCommandArg: String = objHash.checksum
+  override def asCommandArg: String = objHash.asCommandArg
 }
 
 object GitRevision {
   def apply(revision: Revision): Try[GitRevision] = revision.backendRevisionSpec
-    .map(GitObjectHash(_).map(GitRevision(_)))
+    .map(GitRevision(_))
     .getOrElse(Throw(GitThriftParseError(
       s"invalid revision ${revision}: revision spec must be provided")))
+
+  def apply(checksum: String): Try[GitRevision] = GitObjectHash(checksum).map(new GitRevision(_))
 }
 
 case class GitCloneResultLocalDirectory(source: GitRemote, dir: Directory)
@@ -246,16 +253,36 @@ object GitUser {
   }
 }
 
+// case class GitNotesPing()
+
+case class GitNotesPingEntry(objHash: GitObjectHash, ping: Ping) {
+  def asThriftMapTuple = (PingId(Some(objHash.checksum)) -> ping)
+}
+
+object GitNotesPingEntry {
+  def apply(checkout: GitCheckedOutWorktree, ping: Ping): Future[GitNotesPingEntry] = {
+    Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = checkout.dir.asFile)
+      .executeForOutput(ping.toBinaryStdin)
+      .flatMap(output => GitObjectHash(output.stdout.trim).constFuture)
+      .map(GitNotesPingEntry(_, ping))
+  }
+}
+
+case class GitNotesPingCollection(pingEntries: Seq[GitNotesPingEntry]) {
+  def asPingMap = pingEntries.map(_.asThriftMapTuple).toMap
+  def asThrift = PingCollection(Some(asPingMap))
+}
+
 case class GitRevisionRange(begin: GitRevision, end: GitRevision) extends GitCommandArgument {
   override def asCommandArg: String = s"${begin.asCommandArg}..${end.asCommandArg}"
 
   def asThrift = RevisionRange(Some(asCommandArg))
-
-  def getPingsInCheckout(checkout: GitCheckedOutWorktree): Future[GitNotesPingCollection] = ???
 }
 
 object GitRevisionRange {
   val maxLengthShaRange = rx"\A([0-9a-f]{40})\.\.([0-9a-f]{40})\Z"
+
+  val notesListLine = rx"\A([0-9a-f]{40}) ([0-9a-f]{40})\Z"
 
   def apply(range: RevisionRange): Try[GitRevisionRange] = range.backendRevisionRangeSpec
     .map(GitRevisionRange(_))
@@ -273,6 +300,40 @@ object GitRevisionRange {
   }
 }
 
+case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisionRange) {
+  private def getAllRevisionsInRange: Future[Seq[GitRevision]] = {
+    Process(Seq("git", "log", "--pretty=format:%H", range.asCommandArg), cwd = checkout.dir.asFile)
+      .executeForOutput
+      .flatMap(_.stdoutLines.map(GitRevision(_).constFuture).collectFutures)
+  }
+
+  def getPings: Future[GitNotesPingCollection] = ???
+
+  // def getPings: Future[GitNotesPingCollection] = {
+  //   // TODO: have a global notes db so we don't have to list every note in the current repo, then
+  //   // parse it as we do here. This is definitely fine for now.
+  //   val allRevisions = getAllRevisionsInRange.toSet
+  //   Process(Seq("git", "notes", "list"), cwd = checkout.dir.asFile)
+  //     .executeForOutput
+  //     .flatMap { out =>
+  //       val notesObjects = out.stdoutLines.flatMap {
+  //         case notesListLine(notesRef, commitRef) => {
+  //           GitObjectHash(notesRef).join(GitRevision(commitRef)).map {
+  //             case (notesObj, commitRev) => if (allRevisions(commitRev)) {
+  //               Some(notesObj)
+  //             } else None
+  //           }
+  //         }
+  //         case _ => None
+  //       }
+  //       notesObjects.map { obj =>
+  //         Process(Seq("git", "show", obj.asCommandArg), cwd = checkout.dir.asFile)
+  //           .executeForOutput
+  //       }
+  //     }
+  // }
+}
+
 // TODO: we would probably want to allow more than just a SHA range, otherwise we'd need a new
 // checkout every time we fetch from the remote. Allowing an arbitrary ref-like, for both ends of
 // the range, should suffice (???).
@@ -285,8 +346,8 @@ case class GitNotesCollaborationId(source: GitRemote, revisionRange: GitRevision
 
   def getCollaboration(params: GitRepoParams): Future[GitNotesCollaboration] = {
     asCheckoutRequest.checkout(params)
-      .flatMap { checkout => revisionRange
-        .getPingsInCheckout(checkout)
+      .flatMap { checkout => GitCheckoutPingSpan(checkout, revisionRange)
+        .getPings
         .map(GitNotesCollaboration(checkout, _))
       }
   }
@@ -307,30 +368,10 @@ object GitNotesCollaborationId {
   }
 }
 
-// case class GitNotesPing()
-
-case class GitNotesPingEntry(objHash: GitObjectHash, ping: Ping) {
-  def asThriftMapTuple = (PingId(Some(objHash.checksum)) -> ping)
-}
-
-object GitNotesPingEntry {
-  def apply(checkout: GitCheckedOutWorktree, ping: Ping): Future[GitNotesPingEntry] = {
-    Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = checkout.dir.asFile)
-      .executeForOutput(ping.toBinaryStdin)
-      .flatMap { case OutputStrings(stdout, _) => Future.const(GitObjectHash(stdout.trim)) }
-      .map(GitNotesPingEntry(_, ping))
-  }
-}
-
 case class GitRepoCommunicationError(message: String, base: Throwable)
     extends GitError(message, base)
 
 case class GitCollaborationResolutionError(message: String) extends GitError(message)
-
-case class GitNotesPingCollection(pingEntries: Seq[GitNotesPingEntry]) {
-  def asPingMap = pingEntries.map(_.asThriftMapTuple).toMap
-  def asThrift = PingCollection(Some(asPingMap))
-}
 
 case class GitNotesCollaboration(checkout: GitCheckedOutWorktree, pings: GitNotesPingCollection) {
   def asThrift = Collaboration(Some(checkout.asThrift), Some(pings.asThrift))
@@ -339,9 +380,11 @@ case class GitNotesCollaboration(checkout: GitCheckedOutWorktree, pings: GitNote
 
 case class GitNotesCollaborationQuery(collabIds: Seq[GitNotesCollaborationId]) {
   def invoke(params: GitRepoParams): Future[QueryCollaborationsResponse] = {
-    Future.collect(collabIds.map { cid => cid.getCollaboration(params)
-      .map((cid.asThrift -> _.asThrift))
-    }).map(idTuples => QueryCollaborationsResponse.MatchedCollaborations(idTuples.toMap))
+    val collabs = collabIds.map { cid =>
+      cid.getCollaboration(params).map((cid.asThrift -> _.asThrift))
+    }.collectFutures
+
+    collabs.map(idTuples => QueryCollaborationsResponse.MatchedCollaborations(idTuples.toMap))
   }
 }
 
