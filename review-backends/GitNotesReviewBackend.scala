@@ -13,7 +13,7 @@ import com.twitter.util.{Try, Return, Throw, Future}
 
 import scala.sys.process._
 
-class GitNotesReviewBackend(gitRepo: GitRepoBackend) extends ReviewBackend.MethodPerEndpoint {
+class GitNotesReviewBackend(repoParams: GitRepoParams) extends ReviewBackend.MethodPerEndpoint {
   def pingsForCollaboration(
     request: GitNotesCollaborationRequest,
     checkout: Checkout
@@ -22,22 +22,8 @@ class GitNotesReviewBackend(gitRepo: GitRepoBackend) extends ReviewBackend.Metho
   override def queryCollaborations(
     query: CollaborationQuery
   ): Future[QueryCollaborationsResponse] = {
-    val collabIds = query.collaborationIds.getOrElse(Seq()) match {
-      case Seq() => Future.const(Throw(GitCollaborationResolutionError(
-        s"invalid collaboration query ${query}: " +
-          "a non-empty set of collaboration ids must be provided"
-      )))
-      case x => Future(x)
-    }
-    // Collect the `Try`s and fail early if parsing any of the collaboration requests fails.
-    val collabRequests = collabIds.flatMap(ids => Future.collect(ids.map { cid =>
-      Future.const(GitNotesCollaborationRequest(cid))
-        // Convert to a mapping of `MatchedCollaborations`.
-        .map(cid -> _)
-    }).map(_.toMap))
-
-    collabRequests.flatMap(reqs => Future.collect(reqs.mapValues(_.getCollaboration(gitRepo))))
-      .map(idCollabs => QueryCollaborationsResponse.MatchedCollaborations(idCollabs))
+    Future.const(GitNotesCollaborationQuery(query))
+      .flatMap(_.invoke(repoParams))
       .rescue { case e => Future {
         QueryCollaborationsResponse.Error(ReviewBackendError(Some(e.toString)))
       }}

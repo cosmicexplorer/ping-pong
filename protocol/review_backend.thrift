@@ -17,7 +17,7 @@ struct Collaboration {
 }
 
 # This may be empty. Applications should probably throw an error if that happens, because it's
-# likely erroneous.
+# likely erroneous.z
 typedef list<CollaborationId> CollaborationIdSet
 
 struct CollaborationQuery {

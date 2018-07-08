@@ -122,15 +122,13 @@ case class LocalFilesystemRepo(rootDir: Path) extends GitRemote {
 }
 
 object GitRemote {
-  // NB: we would do any parsing of `backendLocationSpec` (e.g. into a url, file path, etc) here
+  def apply(location: RepoLocation): Try[GitRemote] = location.backendLocationSpec
+    .map(GitRemote(_))
+    .getOrElse(Throw(GitInputParseError(s"location ${location} was not provided")))
+
+  // TODO: we would do any parsing of `backendLocationSpec` (e.g. into a url, file path, etc) here
   // and return a different implementor of `GitRemote` for different formats of inputs.
   // Currently, we interpret every string as pointing to a local directory path.
-  def apply(location: RepoLocation): Try[GitRemote] = location.backendLocationSpec match {
-    case Some(locationSpec) => GitRemote(locationSpec)
-    case None => Throw(GitInputParseError(
-      s"location ${location} was not provided"))
-  }
-
   def apply(locationSpec: String): Try[GitRemote] = Return(LocalFilesystemRepo(Path(locationSpec)))
 }
 
@@ -149,10 +147,6 @@ case class GitCheckedOutWorktree(
   }
 }
 
-object GitCheckedOutWorktree {
-  def apply(checkout: Checkout): Future[GitCheckedOutWorktree] = ???
-}
-
 case class GitCheckoutRequest(source: GitRemote, revision: GitRevision) {
   def asThrift = CheckoutRequest(Some(source.asThrift), Some(revision.asThrift))
 
@@ -169,6 +163,7 @@ case class GitCheckoutRequest(source: GitRemote, revision: GitRevision) {
   ): Future[GitCheckedOutWorktree] = {
     val intoWorktreeDir = worktreeDir.path / cloneResult.source.localDirname
     // If the worktree directory doesn't exist, clone it.
+    // FIXME: this should be unique per collaboration (???)
     val worktreeDirCloned = Directory.maybeExistingDir(intoWorktreeDir)
       .flatMap(_.map(Future(_)).getOrElse {
         val processRequest = Process(
@@ -255,6 +250,8 @@ case class GitRevisionRange(begin: GitRevision, end: GitRevision) extends GitCom
   override def asCommandArg: String = s"${begin.asCommandArg}..${end.asCommandArg}"
 
   def asThrift = RevisionRange(Some(asCommandArg))
+
+  def getPingsInCheckout(checkout: GitCheckedOutWorktree): Future[GitNotesPingCollection] = ???
 }
 
 object GitRevisionRange {
@@ -276,34 +273,22 @@ object GitRevisionRange {
   }
 }
 
-case class GitRepoCommunicationError(message: String, base: Throwable)
-    extends GitError(message, base)
-
-case class GitCollaborationResolutionError(message: String) extends GitError(message)
-
-case class GitNotesCollaboration()
-
+// TODO: we would probably want to allow more than just a SHA range, otherwise we'd need a new
+// checkout every time we fetch from the remote. Allowing an arbitrary ref-like, for both ends of
+// the range, should suffice (???).
 case class GitNotesCollaborationId(source: GitRemote, revisionRange: GitRevisionRange) {
   private def asCollabIdString = s"${source.asCommandArg}:${revisionRange.asCommandArg}"
 
   def asThrift = CollaborationId(Some(asCollabIdString))
 
-  private def pingsForCollaboration(checkout: GitCheckedOutWorktree): Future[PingCollection] = ???
+  def asCheckoutRequest = GitCheckoutRequest(source, revisionRange.end)
 
-  def getCollaboration(gitRepo: RepoBackend.MethodPerEndpoint): Future[Collaboration] = {
-    val checkoutRequest = GitCheckoutRequest(source, revisionRange.end)
-
-    gitRepo.getCheckout(checkoutRequest.asThrift).flatMap {
-      case CheckoutResponse.Error(err) => Future.const(Throw(
-        GitRepoCommunicationError(s"error checking out collaboration request ${this}", err)))
-      case x: CheckoutResponse.UnknownUnionField => Future.const(Throw(
-        GitCollaborationResolutionError(
-          s"error checking out collaboration request ${this}: " +
-            s"unknown union for checkout response ${x}")))
-      case CheckoutResponse.Completed(checkout) => GitCheckedOutWorktree(checkout)
-          .map(pingsForCollaboration(_))
-          .map(pings => Collaboration(Some(checkout), Some(pings)))
-    }
+  def getCollaboration(params: GitRepoParams): Future[GitNotesCollaboration] = {
+    asCheckoutRequest.checkout(params)
+      .flatMap { checkout => revisionRange
+        .getPingsInCheckout(checkout)
+        .map(GitNotesCollaboration(checkout, _))
+      }
   }
 }
 
@@ -322,16 +307,53 @@ object GitNotesCollaborationId {
   }
 }
 
-// case class GitNotesCollaborationQuery()
+// case class GitNotesPing()
 
-case class GitNotesPing(gitObjectHash: GitObjectHash, ping: Ping)
+case class GitNotesPingEntry(objHash: GitObjectHash, ping: Ping) {
+  def asThriftMapTuple = (PingId(Some(objHash.checksum)) -> ping)
+}
 
-object GitNotesPing {
-  def apply(ping: Ping): Future[GitNotesPing] = {
-    // FIXME: **NEED** a cwd!!!
-    Process(Seq("git", "hash-object", "-w", "--stdin"))
+object GitNotesPingEntry {
+  def apply(checkout: GitCheckedOutWorktree, ping: Ping): Future[GitNotesPingEntry] = {
+    Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = checkout.dir.asFile)
       .executeForOutput(ping.toBinaryStdin)
       .flatMap { case OutputStrings(stdout, _) => Future.const(GitObjectHash(stdout.trim)) }
-      .map(GitNotesPing(_, ping))
+      .map(GitNotesPingEntry(_, ping))
+  }
+}
+
+case class GitRepoCommunicationError(message: String, base: Throwable)
+    extends GitError(message, base)
+
+case class GitCollaborationResolutionError(message: String) extends GitError(message)
+
+case class GitNotesPingCollection(pingEntries: Seq[GitNotesPingEntry]) {
+  def asPingMap = pingEntries.map(_.asThriftMapTuple).toMap
+  def asThrift = PingCollection(Some(asPingMap))
+}
+
+case class GitNotesCollaboration(checkout: GitCheckedOutWorktree, pings: GitNotesPingCollection) {
+  def asThrift = Collaboration(Some(checkout.asThrift), Some(pings.asThrift))
+}
+
+
+case class GitNotesCollaborationQuery(collabIds: Seq[GitNotesCollaborationId]) {
+  def invoke(params: GitRepoParams): Future[QueryCollaborationsResponse] = {
+    Future.collect(collabIds.map { cid => cid.getCollaboration(params)
+      .map((cid.asThrift -> _.asThrift))
+    }).map(idTuples => QueryCollaborationsResponse.MatchedCollaborations(idTuples.toMap))
+  }
+}
+
+object GitNotesCollaborationQuery {
+  def apply(query: CollaborationQuery): Try[GitNotesCollaborationQuery] = {
+    query.collaborationIds.getOrElse(Seq()) match {
+      case Seq() => Throw(GitCollaborationResolutionError(
+        s"invalid collaboration query ${query}: " +
+          "a non-empty set of collaboration ids must be provided"
+      ))
+      case x => Try.collect(x.map(GitNotesCollaborationId(_)))
+          .map(GitNotesCollaborationQuery(_))
+    }
   }
 }
