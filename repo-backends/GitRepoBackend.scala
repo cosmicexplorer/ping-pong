@@ -1,8 +1,7 @@
 package pingpong.repo_backends
 
+import pingpong.io.FutureTryExt._
 import pingpong.protocol.repo_backend._
-import pingpong.parsing._
-import pingpong.parsing.ThriftExt._
 import pingpong.subsystems._
 
 import com.twitter.util.Future
@@ -15,7 +14,9 @@ class GitRepoBackend(repoParams: GitRepoParams) extends RepoBackend.MethodPerEnd
   // TODO: cleanup LRU checkouts after we take up enough space!
   override def getCheckout(request: CheckoutRequest): Future[CheckoutResponse] = {
     val wrappedRequest = GitCheckoutRequest(request)
-    val checkoutExecution = Future.const(wrappedRequest).flatMap(_.checkout(repoParams))
+    val checkoutExecution = wrappedRequest.asTry
+      .constFuture
+      .flatMap(_.checkout(repoParams))
 
     checkoutExecution
       .map(checkout => CheckoutResponse.Completed(checkout.asThrift))

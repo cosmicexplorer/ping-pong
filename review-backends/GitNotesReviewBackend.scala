@@ -9,7 +9,7 @@ import com.twitter.util.Future
 class GitNotesReviewBackend(repoParams: GitRepoParams) extends ReviewBackend.MethodPerEndpoint {
   override def queryCollaborations(
     query: CollaborationQuery
-  ): Future[QueryCollaborationsResponse] = GitNotesCollaborationQuery(query)
+  ): Future[QueryCollaborationsResponse] = GitNotesCollaborationQuery(query).asTry
     .constFuture
     .flatMap(_.invoke(repoParams).map { matchedCollabs =>
       QueryCollaborationsResponse.MatchedCollaborations(matchedCollabs.asThrift)
@@ -20,7 +20,7 @@ class GitNotesReviewBackend(repoParams: GitRepoParams) extends ReviewBackend.Met
 
   override def publishPings(
     request: PublishPingsRequest
-  ): Future[PublishPingsResponse] = GitNotesPublishPingsRequest(request)
+  ): Future[PublishPingsResponse] = GitNotesPublishPingsRequest(request).asTry
     .constFuture
     .flatMap(_.publish(repoParams).map(pings => PublishPingsResponse.PublishedPings(pings.asThrift)))
     .rescue { case e => Future {

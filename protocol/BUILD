@@ -19,11 +19,9 @@ custom_scrooge_java_thrift_library(
   sources=['pingpong.thrift'],
   dependencies=[
     ':notifications',
-    ':repo-backend',
   ],
   exports=[
     ':notifications',
-    ':repo-backend',
   ],
 )
 
@@ -37,8 +35,10 @@ custom_scrooge_java_thrift_library(
   sources=['review_backend.thrift'],
   dependencies=[
     ':pingpong',
+    ':repo-backend',
   ],
   exports=[
     ':pingpong',
+    ':repo-backend',
   ],
 )

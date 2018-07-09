@@ -1,8 +1,15 @@
 package pingpong.io
 
-import com.twitter.util.{Try, Future}
+import com.twitter.util.{Try, Return, Future}
 
 object FutureTryExt {
+  type ExceptionFactory[T] = String => Try[T]
+
+  implicit class OptionalFieldDeref[T](opt: Option[T]) {
+    def derefOptionalField(fieldName: String)(implicit factory: ExceptionFactory[T]): Try[T] =
+      opt.map(Return(_)).getOrElse(factory(fieldName))
+  }
+
   implicit class FutureSeq[T](futures: Seq[Future[T]]) {
     def collectFutures = Future.collect(futures)
   }

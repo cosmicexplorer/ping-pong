@@ -60,7 +60,7 @@ class ServerFeatureTest extends AsyncTwitterFeatureTest {
       .map { case CheckoutResponse.Completed(Checkout(Some(checkout), Some(repo), Some(rev))) =>
         // TODO: is it kosher to use logic from the `GitRemote` wrapper in this test? Should this be
         // more "from scratch"?
-        val remote = GitRemote(repo).get
+        val remote = GitRemote(repo).asTry.get
         val middleDirname = s"${remote.hashDirname}@${rev.backendRevisionSpec.get}"
         val checkoutsDirUnderTmp = (
           TestEnvironmentModule.tempDirBase /

@@ -2,10 +2,41 @@
 
 include "entities.thrift"
 include "notifications.thrift"
-include "repo_backend.thrift"
+
+struct RepoFile {
+  # Path to a file relative to the repo root.
+  1: optional string file_relative_path;
+}
+
+# If this is <= 0, that is an application-level error.
+typedef i32 LineNumber
+
+struct LineRangeForFile {
+  1: optional LineNumber beginning;
+  2: optional LineNumber ending;
+}
+
+struct FileWithRange {
+  1: optional RepoFile file;
+  # If not provided, the whole file is assumed.
+  # This will be interpreted as just the beginning of the specified range, if the review backend
+  # only supports tracking comments at a single location, instead of spanning multiple lines (all of
+  # them, except our git notes backend).
+  2: optional LineRangeForFile line_range_in_file;
+}
+
+# Represents some contiguous selection of the contents of some file in the underlying repo at some
+# specific revision.
+struct Hunk {
+  1: optional FileWithRange file_with_range;
+}
+
+struct PingLocation {
+  1: optional list<Hunk> hunk_collection;
+}
 
 struct RegionComment {
-  1: optional repo_backend.PingLocation ping_location;
+  1: optional PingLocation ping_location;
 }
 
 # E.g. a comment on the pull request itself, not tied to a particular line.
@@ -36,14 +67,12 @@ struct Ping {
   # a github @user in the comment text for all the users that need to be notified. Backends should
   # ensure they return exactly the comment_text of the Ping they received, or update the
   # comment_text of the ping at that id.
-  5: optional string comment_text;
+  5: optional string body;
 }
 
 # NB: This is for reading/writing by clients, and *all* `PingId` instances are local to this map!
 # TODO: could just use a list here, and make ping ids i32s which index into that list -- that's a
 # perf opportunity for later.
-typedef map<entities.PingId, Ping> PingMap
-
 struct PingCollection {
-  1: optional PingMap ping_map;
+  1: optional map<entities.PingId, Ping> ping_map;
 }

@@ -17,11 +17,9 @@ struct Collaboration {
 }
 
 # This may be empty. Applications should probably throw an error if that happens, because it's
-# likely erroneous.z
-typedef list<CollaborationId> CollaborationIdSet
-
+# likely erroneous.
 struct CollaborationQuery {
-  1: optional CollaborationIdSet collaboration_ids;
+  1: optional list<CollaborationId> collaboration_ids;
 }
 
 # NB: `CollaborationId` *could* be global (like a git remote), and that would be very neat
@@ -29,10 +27,8 @@ struct CollaborationQuery {
 # NB: `CollaborationId` instances need not be "global" in any sense -- we just need the
 # `collaboration_id` in `PublishPingsRequest` (or the elements of `ExplicitCollaborationSet`) to
 # match something that was returned to the client in this map.
-typedef map<CollaborationId, Collaboration> CollaborationMap
-
 struct MatchedCollaborations {
-  1: optional CollaborationMap collaborations;
+  1: optional map<CollaborationId, Collaboration> collaborations;
 }
 
 exception ReviewBackendError {
@@ -44,11 +40,9 @@ union QueryCollaborationsResponse {
   2: ReviewBackendError error;
 }
 
-typedef list<pingpong.Ping> PublishPingSet
-
 struct PublishPingsRequest {
   1: optional CollaborationId collaboration_id;
-  2: optional PublishPingSet pings_to_publish;
+  2: optional list<pingpong.Ping> pings_to_publish;
 }
 
 union PublishPingsResponse {

@@ -26,10 +26,14 @@ union TargetSelection {
   4: AtLeastNMembers at_least;
 }
 
-typedef list<TargetSelection> TargetSpecification
+struct TargetSpecification {
+  1: optional list<TargetSelection> target_selections;
+}
 
 struct ApprovalRequest {
   1: optional entities.PingId pid;
 }
 
-typedef list<ApprovalRequest> ApprovalSpecification
+struct ApprovalSpecification {
+  1: optional list<ApprovalRequest> approval_requests;
+}

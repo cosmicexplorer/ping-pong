@@ -1,43 +1,8 @@
 #@namespace scala pingpong.protocol.repo_backend
 
-struct RepoFile {
-  # Path to a file relative to the repo root.
-  1: optional string file_relative_path;
-}
-
-# If this is <= 0, that is an application-level error.
-typedef i32 LineNumber
-
-struct LineRangeForFile {
-  1: optional LineNumber beginning;
-  2: optional LineNumber ending;
-}
-
-struct FileWithRange {
-  1: optional RepoFile file;
-  # If not provided, the whole file is assumed.
-  # This will be interpreted as just the beginning of the specified range, if the review backend
-  # only supports tracking comments at a single location, instead of spanning multiple lines (all of
-  # them, except our git notes backend).
-  2: optional LineRangeForFile line_range_in_file;
-}
-
 struct Revision {
   # This is a backend-specific string for a specific ref in the repo (e.g. commit).
   1: optional string backend_revision_spec;
-}
-
-# Represents some contiguous selection of the contents of some file in the underlying repo at some
-# specific revision.
-struct Hunk {
-  1: optional Revision revision;
-  2: optional FileWithRange file_with_range;
-}
-
-typedef list<Hunk> HunkCollection
-
-struct PingLocation {
-  1: optional HunkCollection hunk_collection;
 }
 
 # E.g. a git commit range.
@@ -52,22 +17,22 @@ struct PathGlob {
   1: optional string relative_glob;
 }
 
-typedef list<PathGlob> PathGlobs
+# typedef list<PathGlob> PathGlobs
 
-struct PathGlobsWithinRevisionRange {
-  # The application should use all the commits in the collaboration if this is not provided.
-  1: optional RevisionRange revision_range;
-  2: optional PathGlobs path_globs;
-}
+# struct PathGlobsWithinRevisionRange {
+#   # The application should use all the commits in the collaboration if this is not provided.
+#   1: optional RevisionRange revision_range;
+#   2: optional PathGlobs path_globs;
+# }
 
-# Specifies a range which can resolve to zero or more Hunk objects.
-union HunkGlob {
-  1: PathGlobsWithinRevisionRange path_revision_range_globs;
-  # This is an extremely narrow selector.
-  2: Hunk hunk;
-}
+# # Specifies a range which can resolve to zero or more Hunk objects.
+# union HunkGlob {
+#   1: PathGlobsWithinRevisionRange path_revision_range_globs;
+#   # This is an extremely narrow selector.
+#   2: Hunk hunk;
+# }
 
-typedef list<HunkGlob> HunkGlobs
+# typedef list<HunkGlob> HunkGlobs
 
 struct RepoLocation {
   # E.g. a local or remote git repo.
@@ -89,8 +54,6 @@ struct Checkout {
   2: optional RepoLocation source;
   3: optional Revision revision;
 }
-
-typedef list<RepoFile> RepoFileset
 
 exception RepoBackendError {
   1: optional string message;
