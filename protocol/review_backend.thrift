@@ -1,10 +1,23 @@
 #@namespace scala pingpong.protocol.review_backend
 
+include "entities.thrift"
 include "pingpong.thrift"
 include "repo_backend.thrift"
 
 struct CollaborationId {
   1: optional string cid;
+}
+
+struct PinnedPing {
+  1: optional pingpong.Ping ping;
+  2: optional repo_backend.Revision revision;
+}
+
+# NB: This is for reading/writing by clients, and *all* `PingId` instances are local to this map!
+# TODO: could just use a list here, and make ping ids i32s which index into that list -- that's a
+# perf opportunity for later.
+struct PingCollection {
+  1: optional map<entities.PingId, PinnedPing> ping_map;
 }
 
 # FIXME: the below line doesn't highlight correctly in `scrooge-mode' because it has a string.
@@ -13,7 +26,7 @@ struct CollaborationId {
 struct Collaboration {
   # The checkout's revision should be at the HEAD commit of whatever branch/pull request this is.
   1: optional repo_backend.Checkout checkout;
-  2: optional pingpong.PingCollection pings;
+  2: optional PingCollection pings;
 }
 
 # This may be empty. Applications should probably throw an error if that happens, because it's
@@ -42,11 +55,11 @@ union QueryCollaborationsResponse {
 
 struct PublishPingsRequest {
   1: optional CollaborationId collaboration_id;
-  2: optional list<pingpong.Ping> pings_to_publish;
+  2: optional list<PinnedPing> pinned_pings;
 }
 
 union PublishPingsResponse {
-  1: pingpong.PingCollection published_pings;
+  1: PingCollection published_pings;
   2: ReviewBackendError error;
 }
 

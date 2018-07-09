@@ -69,10 +69,3 @@ struct Ping {
   # comment_text of the ping at that id.
   5: optional string body;
 }
-
-# NB: This is for reading/writing by clients, and *all* `PingId` instances are local to this map!
-# TODO: could just use a list here, and make ping ids i32s which index into that list -- that's a
-# perf opportunity for later.
-struct PingCollection {
-  1: optional map<entities.PingId, Ping> ping_map;
-}

@@ -13,6 +13,8 @@ import pingpong.protocol.repo_backend._
 import pingpong.protocol.review_backend._
 
 import ammonite.ops._
+import com.twitter.bijection._
+import com.twitter.bijection.Conversion.asMethod
 import com.twitter.util.{Try, Return, Throw, Future}
 import com.twitter.scrooge.ThriftStruct
 
@@ -25,14 +27,14 @@ class GitError(message: String, base: Throwable) extends RuntimeException(messag
 
 case class GitObjectHashParseError(message: String) extends GitError(message)
 
-// TODO: document this! Right now it's basically "an unambiguous string that can be passed directly
-// into the git command line".
-trait GitCommandArgument {
-  def asCommandArg: String
+// FIXME: this is only useful if we force its use for process creation! And when we do that, it
+// should probably be done in `pingpong.io`.
+trait GitCommandArg extends HasCanonicalString {
+  def asCommandLineArg: String = asCanonicalString
 }
 
-case class GitObjectHash(checksum: String) extends GitCommandArgument {
-  override def asCommandArg: String = checksum
+case class GitObjectHash(checksum: String) extends GitCommandArg {
+  override def asCanonicalString: String = checksum
 }
 
 case class GitStringParseError(message: String, base: Throwable) extends GitError(message, base)
@@ -52,11 +54,9 @@ case class GitThriftParseError(message: String) extends GitError(message)
 
 case class GitObjectMarshalError(message: String, base: GitError) extends GitError(message, base)
 
-case class GitRevision(objHash: GitObjectHash)
-    extends Thriftable[Revision]
-    with GitCommandArgument {
-  override def asThrift = Revision(Some(objHash.checksum))
-  override def asCommandArg: String = objHash.asCommandArg
+case class GitRevision(objHash: GitObjectHash) extends Thriftable[Revision] with GitCommandArg {
+  override val asThrift = Revision(Some(objHash.checksum))
+  override def asCanonicalString: String = objHash.asCanonicalString
 }
 
 object GitRevision
@@ -78,10 +78,10 @@ case class GitCacheError(message: String) extends GitError(message)
 
 case class GitCloneBase(dir: Directory)
 
-sealed trait GitRemote extends GitCommandArgument with Thriftable[RepoLocation] {
+sealed trait GitRemote extends GitCommandArg with Thriftable[RepoLocation] {
   protected def gitRemoteAddress: String
 
-  override def asCommandArg: String = gitRemoteAddress
+  override def asCanonicalString: String = gitRemoteAddress
 
   // The name to use for the local directory when cloning.
   def localDirname: RelPath
@@ -100,7 +100,7 @@ sealed trait GitRemote extends GitCommandArgument with Thriftable[RepoLocation] 
     val cloneIntoDir = cloneDir.path / localDirname
     // If the clone directory doesn't exist, clone it.
     val clonedDir = Directory.maybeExistingDir(cloneIntoDir).flatMap(_.map(Future(_)).getOrElse {
-      Process(Seq("git", "clone", asCommandArg, cloneIntoDir.asStringPath))
+      Process(Seq("git", "clone", asCommandLineArg, cloneIntoDir.asStringPath))
         .executeForOutput
         .flatMap(_ => Directory(cloneIntoDir))
     })
@@ -175,11 +175,11 @@ case class GitCheckedOutWorktree(
     Checkout(Some(checkoutLocation), Some(cloneResult.source.asThrift), Some(revision.asThrift))
   }
 
-  def makePingEntry(ping: GitNotesPing): Future[GitNotesPingEntry] = {
+  def makePingEntry(pinnedPing: GitNotesPinnedPing): Future[GitNotesPingEntry] = {
     Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = dir.asFile)
-      .executeForOutput(ping.asThrift.toPlaintextStdin)
+      .executeForOutput(pinnedPing.ping.asThrift.toPlaintextStdin)
       .flatMap(output => GitNotesPingId(output.stdout.trim).asTry.constFuture)
-      .map(GitNotesPingEntry(_, ping))
+      .map(GitNotesPingEntry(_, pinnedPing))
   }
 }
 
@@ -187,7 +187,7 @@ case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
     extends Thriftable[CheckoutRequest] {
   override def asThrift = CheckoutRequest(Some(source.asThrift), Some(revision.asThrift))
 
-  def hashDirname: RelPath = s"${source.hashDirname}@${revision.asCommandArg}"
+  def hashDirname: RelPath = s"${source.hashDirname}@${revision.asCanonicalString}"
 
   private def getOrCreateWorktreeDir(baseDir: Directory): Future[Path] = Future {
     val worktreeDir = baseDir.path / hashDirname
@@ -204,7 +204,7 @@ case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
     val worktreeDirCloned = Directory.maybeExistingDir(intoWorktreeDir)
       .flatMap(_.map(Future(_)).getOrElse {
         val processRequest = Process(
-          Seq("git", "worktree", "add", intoWorktreeDir.asStringPath, revision.asCommandArg),
+          Seq("git", "worktree", "add", intoWorktreeDir.asStringPath, revision.asCommandLineArg),
           cwd = cloneResult.dir.asFile)
 
         processRequest.executeForOutput
@@ -217,7 +217,7 @@ case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
         .executeForOutput
         .flatMap { case OutputStrings(stdout, _) => {
           val repoRevision = stdout.trim
-          val expectedRevision = revision.asCommandArg
+          val expectedRevision = revision.asCanonicalString
           if (repoRevision == expectedRevision) {
             Future(GitCheckedOutWorktree(cloneResult, revision, checkedOutWorktreeDir))
           } else {
@@ -259,8 +259,9 @@ object GitCheckoutRequest extends ThriftParser[CheckoutRequest, GitCheckoutReque
 case class GitIdentificationError(message: String) extends GitError(message)
 
 // TODO: what other notions of identity should we consider? This is probably fine for a first draft.
-case class GitUser(email: String) extends Thriftable[UserId] {
+case class GitUser(email: String) extends Thriftable[UserId] with HasCanonicalString {
   override def asThrift = UserId(Some(email))
+  override def asCanonicalString = email
 }
 
 object GitUser
@@ -396,9 +397,9 @@ case class GitPingParseError(message: String) extends GitError(message)
 
 case class GitNotesPingId(gitObj: GitObjectHash)
     extends Thriftable[PingId]
-    with GitCommandArgument {
-  override def asThrift = PingId(Some(asCommandArg))
-  override def asCommandArg: String = gitObj.asCommandArg
+    with GitCommandArg {
+  override def asThrift = PingId(Some(asCanonicalString))
+  override def asCanonicalString: String = gitObj.asCanonicalString
 }
 
 object GitNotesPingId
@@ -412,6 +413,8 @@ object GitNotesPingId
   override def apply(pingIdSpec: String) = asStringParse("ping id specification", pingIdSpec,
     GitObjectHash(pingIdSpec).asTry.map(GitNotesPingId(_)))
 }
+
+case class GitNotesPinnedPingId(pingId: GitNotesPingId, rev: GitRevision)
 
 case class GitNotesReply(parent: GitNotesPingId) extends GitNotesPingSource {
   override def asThrift = PingSource.Reply(Reply(Some(parent.asThrift)))
@@ -473,7 +476,23 @@ object GitNotesPing extends ThriftParser[Ping, GitNotesPing] {
     })
 }
 
-case class GitNotesPingEntry(pingId: GitNotesPingId, ping: GitNotesPing) {
+case class GitNotesPinnedPing(ping: GitNotesPing, rev: GitRevision) extends Thriftable[PinnedPing] {
+  override def asThrift = PinnedPing(Some(ping.asThrift), Some(rev.asThrift))
+}
+
+object GitNotesPinnedPing extends ThriftParser[PinnedPing, GitNotesPinnedPing] {
+  import GitParseImplicits._
+
+  override def apply(pinnedPing: PinnedPing) = asThriftParse("pinned ping", pinnedPing, {
+    val wrappedPing = pinnedPing.ping.derefOptionalField("ping")
+      .flatMap(GitNotesPing(_).asTry)
+    val wrappedRevision = pinnedPing.revision.derefOptionalField("revision")
+      .flatMap(GitRevision(_).asTry)
+    wrappedPing.join(wrappedRevision).map { case (p, r) => GitNotesPinnedPing(p, r) }
+  })
+}
+
+case class GitNotesPingEntry(pingId: GitNotesPingId, ping: GitNotesPinnedPing) {
   def asThriftMapTuple = (pingId.asThrift -> ping.asThrift)
 }
 
@@ -484,9 +503,10 @@ case class GitNotesPingCollection(pingEntries: Seq[GitNotesPingEntry])
 }
 
 case class GitRevisionRange(begin: GitRevision, end: GitRevision)
-    extends GitCommandArgument with Thriftable[RevisionRange] {
-  override def asCommandArg: String = s"${begin.asCommandArg}..${end.asCommandArg}"
-  override def asThrift = RevisionRange(Some(asCommandArg))
+    extends Thriftable[RevisionRange]
+    with GitCommandArg {
+  override def asCanonicalString: String = s"${begin.asCanonicalString}..${end.asCanonicalString}"
+  override def asThrift = RevisionRange(Some(asCanonicalString))
 }
 
 object GitRevisionRange
@@ -511,34 +531,37 @@ object GitRevisionRange
 case class GitNotesListParseError(message: String) extends GitError(message)
 
 case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisionRange) {
-  private def allRevisionsInRange: Future[Seq[GitRevision]] = {
-    Process(Seq("git", "log", "--pretty=format:%H", range.asCommandArg), cwd = checkout.dir.asFile)
-      .executeForOutput
-      .flatMap(_.stdoutLines.map(GitRevision(_).asTry.constFuture).collectFutures)
-  }
+  private def allRevisionsInRange: Future[Seq[GitRevision]] =
+    Process(
+      Seq("git", "log", "--pretty=format:%H", range.asCommandLineArg),
+      cwd = checkout.dir.asFile)
+    .executeForOutput
+    .flatMap(_.stdoutLines.map(GitRevision(_).asTry.constFuture).collectFutures)
 
   private def getNotesObjects(
     revsInRange: Set[GitRevision],
     lines: Seq[String]
-  ): Try[Seq[GitNotesPingId]] = {
-    val notesTries: Seq[Try[Option[GitObjectHash]]] = lines.map {
+  ): Try[Seq[GitNotesPinnedPingId]] = {
+    val notesTries: Seq[Try[Option[GitNotesPinnedPingId]]] = lines.map {
       case GitCheckoutPingSpan.notesListLine(notesRef, commitRef) => {
         GitObjectHash(notesRef).asTry.join(GitRevision(commitRef).asTry).map {
-          case (notesObj, commitRev) => if (revsInRange(commitRev)) { Some(notesObj) } else None
+          case (notesObj, commitRev) => if (revsInRange(commitRev)) {
+            Some(GitNotesPinnedPingId(GitNotesPingId(notesObj), commitRev))
+          } else None
         }
       }
       case line => Throw(GitNotesListParseError(
         s"line ${line} of git notes list output could not be parsed: " +
           s"must match ${GitCheckoutPingSpan.notesListLine}"))
     }
-    notesTries.collectTries.map(_.flatten.map(GitNotesPingId(_)))
+    notesTries.collectTries.map(_.flatten)
   }
 
-  private def pingEntryForId(pingId: GitNotesPingId): Future[GitNotesPingEntry] = {
-    Process(Seq("git", "show", pingId.asCommandArg), cwd = checkout.dir.asFile)
+  private def pingEntryForId(pinnedPingId: GitNotesPinnedPingId): Future[GitNotesPingEntry] = {
+    Process(Seq("git", "show", pinnedPingId.pingId.asCommandLineArg), cwd = checkout.dir.asFile)
       .executeForThriftStruct[Ping, Ping.type](Ping)
       .flatMap(GitNotesPing(_).asTry.constFuture)
-      .map(GitNotesPingEntry(pingId, _))
+      .map(p => GitNotesPingEntry(pinnedPingId.pingId, GitNotesPinnedPing(p, pinnedPingId.rev)))
   }
 
   // TODO: have a global notes db so we don't have to list every note in the current repo, then
@@ -562,10 +585,11 @@ object GitCheckoutPingSpan {
 // checkout every time we fetch from the remote. Allowing an arbitrary ref-like, for both ends of
 // the range, should suffice (???).
 case class GitNotesCollaborationId(source: GitRemote, revisionRange: GitRevisionRange)
-  extends Thriftable[CollaborationId] {
+    extends Thriftable[CollaborationId]
+    with HasCanonicalString {
 
-  private def asCollabIdString = s"${source.asCommandArg}:${revisionRange.asCommandArg}"
-  override def asThrift = CollaborationId(Some(asCollabIdString))
+  override def asCanonicalString = s"${source.asCanonicalString}:${revisionRange.asCanonicalString}"
+  override def asThrift = CollaborationId(Some(asCanonicalString))
 
   def asCheckoutRequest = GitCheckoutRequest(source, revisionRange.end)
 
@@ -654,16 +678,14 @@ object GitNotesCollaborationQuery
 
 case class GitNotesPublishPingsRequest(
   collabId: GitNotesCollaborationId,
-  pingsToPublish: Seq[GitNotesPing],
+  pingsToPublish: Seq[GitNotesPinnedPing],
 ) extends Thriftable[PublishPingsRequest] {
-  def publish(params: GitRepoParams): Future[GitNotesPingCollection] = {
-    collabId.asCheckoutRequest.checkout(params).flatMap { checkout =>
-      pingsToPublish
-        .map(checkout.makePingEntry(_))
-        .collectFutures
-        .map(GitNotesPingCollection(_))
+  def publish(params: GitRepoParams): Future[GitNotesPingCollection] = collabId.asCheckoutRequest
+    .checkout(params).flatMap { checkout => pingsToPublish
+      .map(checkout.makePingEntry(_))
+      .collectFutures
+      .map(GitNotesPingCollection(_))
     }
-  }
 
   override def asThrift = PublishPingsRequest(
     Some(collabId.asThrift),
@@ -674,12 +696,12 @@ object GitNotesPublishPingsRequest
     extends ThriftParser[PublishPingsRequest, GitNotesPublishPingsRequest] {
   import GitParseImplicits._
 
-  override def apply(request: PublishPingsRequest) = asThriftParse(
-    "publish pings request", request, {
+  override def apply(request: PublishPingsRequest) = asThriftParse("publish pings request", request,
+    {
       val collabId = request.collaborationId.derefOptionalField("collaboration id")
         .flatMap(GitNotesCollaborationId(_).asTry)
-      val publishPingSet = request.pingsToPublish.derefOptionalField("pings to publish")
-        .flatMap(_.map(GitNotesPing(_).asTry).collectTries)
+      val publishPingSet = request.pinnedPings.derefOptionalField("pings to publish")
+        .flatMap(_.map(GitNotesPinnedPing(_).asTry).collectTries)
 
       collabId.join(publishPingSet).map {
         case (cid, pings) => GitNotesPublishPingsRequest(cid, pings)
@@ -700,23 +722,4 @@ object GitParseImplicits {
   implicit def stringParseError(
     description: String, arg: String, e: GitError
   ): GitStringParseError = GitStringParseError(s"${description} '${arg}' is invalid", e)
-
-  // type DescriptiveExceptionFactory[T <: ThriftStruct, E <: Throwable, F <: Throwable] =
-  //   (String, T, E) => F
-
-  // implicit class ParseResultWrapper[T, <: ThriftStruct, S <: Thriftable[T]](theTry: Try[S]) {
-  //   def asParseResult(description: String, arg: T): ThriftParseResult[T, S] = {
-  //     val wrappedTry = theTry.rescue { case e: GitError => Throw(
-  //       GitObjectMarshalError(s"${description} ${arg} is invalid", e))
-  //     }
-  //     ThriftParseResult(wrappedTry)
-  //   }
-  // }
-
-  // implicit def objectMarshalError[T <: ThriftStruct](description: String, arg: T) = ???
-  implicit class ObjectMarshalErrorWrapper[T](theTry: Try[T]) {
-    def objectMarshalWrap[S](name: String, arg: S) = theTry.rescue {
-      case e: GitError => Throw(GitObjectMarshalError(s"${name} ${arg} is invalid", e))
-    }
-  }
 }

@@ -1,5 +1,6 @@
 scala_library(
   dependencies=[
+    '3rdparty/jvm:twitter-bijection',
     '3rdparty/jvm:twitter-util',
     'io',
     'protocol:repo-backend',
