@@ -1,7 +1,8 @@
 from __future__ import (absolute_import, division, generators, nested_scopes,
                         print_function, unicode_literals, with_statement)
 
-from pants.backend.codegen.thrift.java.java_thrift_library import JavaThriftLibrary
+from pants.backend.codegen.thrift.java.java_thrift_library import \
+    JavaThriftLibrary
 
 
 class CustomScroogeJavaThriftLibrary(JavaThriftLibrary):

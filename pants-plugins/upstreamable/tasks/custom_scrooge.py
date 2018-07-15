@@ -5,8 +5,8 @@ from pants.backend.codegen.thrift.java.thrift_defaults import ThriftDefaults
 from pants.contrib.scrooge.tasks.scrooge_gen import ScroogeGen
 from pants.util.memo import memoized_property
 from pants.util.objects import Exactly
-
-from upstreamable.targets.custom_scrooge_java_thrift_library import CustomScroogeJavaThriftLibrary
+from upstreamable.targets.custom_scrooge_java_thrift_library import \
+    CustomScroogeJavaThriftLibrary
 
 
 class CustomScrooge(ScroogeGen):

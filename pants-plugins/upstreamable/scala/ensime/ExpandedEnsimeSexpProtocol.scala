@@ -23,8 +23,7 @@ case class ExpandedEnsimeConfig(
   // The stuff in ensime-startup.el that isn't in `EnsimeConfig` for some reason.
   ensimeServerJars: Seq[RawFile],
   ensimeServerVersion: String,
-  scalaCompilerJars: Seq[RawFile],
-)
+  scalaCompilerJars: Seq[RawFile])
 
 // Ripped from `org.ensime.config.EnsimeConfigProtocol`, because all their implicits are private for
 // some reason.

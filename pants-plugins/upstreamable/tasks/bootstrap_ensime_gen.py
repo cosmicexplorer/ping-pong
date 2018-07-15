@@ -1,5 +1,5 @@
-from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
-                        unicode_literals, with_statement)
+from __future__ import (absolute_import, division, generators, nested_scopes,
+                        print_function, unicode_literals, with_statement)
 
 import glob
 import os
@@ -9,8 +9,8 @@ from pants.base.build_environment import get_buildroot
 from pants.base.exceptions import TaskError
 from pants.base.workunit import WorkUnit, WorkUnitLabel
 from pants.build_graph.address import Address
-from pants.task.task import Task
 from pants.option.custom_types import target_option
+from pants.task.task import Task
 from pants.util.collections import assert_single_element
 from pants.util.contextutil import temporary_dir
 from pants.util.memo import memoized_property

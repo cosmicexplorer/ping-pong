@@ -1,13 +1,11 @@
-from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
-                        unicode_literals, with_statement)
+from __future__ import (absolute_import, division, generators, nested_scopes,
+                        print_function, unicode_literals, with_statement)
 
 import json
 import os
 from collections import defaultdict
 
 import six
-from twitter.common.collections import OrderedSet
-
 # FIXME: turn on lint, we're importing much more than we need to here.
 from pants.backend.jvm.subsystems.jvm_platform import JvmPlatform
 from pants.backend.jvm.subsystems.resolve_subsystem import JvmResolveSubsystem
@@ -22,11 +20,13 @@ from pants.backend.jvm.tasks.ivy_task_mixin import IvyTaskMixin
 from pants.backend.project_info.tasks.export import ExportTask
 from pants.backend.python.interpreter_cache import PythonInterpreterCache
 from pants.backend.python.subsystems.python_setup import PythonSetup
-from pants.backend.python.targets.python_requirement_library import PythonRequirementLibrary
+from pants.backend.python.targets.python_requirement_library import \
+    PythonRequirementLibrary
 from pants.backend.python.targets.python_target import PythonTarget
 from pants.backend.python.targets.python_tests import PythonTests
 from pants.backend.python.tasks.pex_build_util import has_python_requirements
-from pants.backend.python.tasks.resolve_requirements_task_base import ResolveRequirementsTaskBase
+from pants.backend.python.tasks.resolve_requirements_task_base import \
+    ResolveRequirementsTaskBase
 from pants.base.build_environment import get_buildroot
 from pants.base.exceptions import TaskError
 from pants.build_graph.resources import Resources
@@ -37,6 +37,7 @@ from pants.java.executor import SubprocessExecutor
 from pants.java.jar.jar_dependency_utils import M2Coordinate
 from pants.task.console_task import ConsoleTask
 from pants.util.memo import memoized_property
+from twitter.common.collections import OrderedSet
 
 
 class ModifiedExportTaskBase(ExportTask):

@@ -1,5 +1,5 @@
-from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
-                        unicode_literals, with_statement)
+from __future__ import (absolute_import, division, generators, nested_scopes,
+                        print_function, unicode_literals, with_statement)
 
 import os
 
@@ -11,7 +11,6 @@ from pants.task.task import Task
 from pants.util.memo import memoized_property
 from pants.util.objects import Exactly
 from pants.util.process_handler import subprocess
-
 from upstreamable.subsystems.sbt import Sbt
 from upstreamable.targets.sbt_dist import SbtDist
 

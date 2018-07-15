@@ -22,8 +22,7 @@ object EnsimeFileGen extends App {
     ensimeCacheDir,
     zincCompileDir,
     outputFile,
-    ensimeServerVersion,
-  ) = args
+    ensimeServerVersion) = args
 
   val buildRootPath = Path(buildRoot)
   val zincBasePath = Path(zincCompileDir)
@@ -87,8 +86,7 @@ object EnsimeFileGen extends App {
         libraryJars = dependentJars.map(jar => makeRawFile(jar.toString)).toList,
         // TODO: turn on sources and libraries in coursier resolve!
         librarySources = Nil,
-        libraryDocs = Nil,
-      )
+        libraryDocs = Nil)
     }
     .toSeq
 
@@ -103,8 +101,7 @@ object EnsimeFileGen extends App {
     projects = projects,
     ensimeServerJars = ensimeServerJars.map(makeRawFile),
     ensimeServerVersion = ensimeServerVersion,
-    scalaCompilerJars = scalaCompilerJars.map(makeRawFile),
-  )
+    scalaCompilerJars = scalaCompilerJars.map(makeRawFile))
 
   val outputFileWriter = new PrintWriter(outputFilePath.toIO)
 

@@ -1,14 +1,14 @@
-from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
-                        unicode_literals, with_statement)
+from __future__ import (absolute_import, division, generators, nested_scopes,
+                        print_function, unicode_literals, with_statement)
 
 import json
 import os
 
-from pants.base.build_environment import get_buildroot, get_pants_cachedir
 from pants.backend.jvm.subsystems.scala_platform import ScalaPlatform
 from pants.backend.jvm.tasks.jvm_tool_task_mixin import JvmToolTaskMixin
-from pants.build_graph.address import Address
+from pants.base.build_environment import get_buildroot, get_pants_cachedir
 from pants.base.workunit import WorkUnitLabel
+from pants.build_graph.address import Address
 from pants.java.distribution.distribution import DistributionLocator
 from pants.java.executor import SubprocessExecutor
 from pants.java.util import execute_java
@@ -18,7 +18,6 @@ from pants.util.contextutil import environment_as, temporary_dir
 from pants.util.dirutil import safe_mkdir, safe_mkdir_for
 from pants.util.memo import memoized_property
 from pants.util.objects import SubclassesOf
-
 from upstreamable.tasks.bootstrap_ensime_gen import EnsimeGenJar
 from upstreamable.tasks.modified_export_task_base import ModifiedExportTaskBase
 
