@@ -1,5 +1,6 @@
 package pingpong.repo_backends
 
+import pingpong.util.ErrorExt._
 import pingpong.util.FutureTryExt._
 import pingpong.protocol.repo_backend._
 import pingpong.subsystems._
@@ -24,6 +25,8 @@ class GitRepoBackend(repoParams: GitRepoParams) extends RepoBackend.MethodPerEnd
 
     checkoutExecution
       .map(checkout => CheckoutResponse.Completed(checkout.asThrift))
-      .rescue { case e => Future(CheckoutResponse.Error(RepoBackendError(Some(e.toString)))) }
+      .rescue { case e => Future(CheckoutResponse.Error(
+        RepoBackendError(Some(e.asStackTrace))))
+      }
   }
 }

@@ -1,10 +1,15 @@
 package pingpong.server.tests
 
 import pingpong.io._
-import pingpong.repo_backends._
+import pingpong.protocol.entities._
+import pingpong.protocol.notifications._
+import pingpong.protocol.pingpong._
 import pingpong.protocol.repo_backend._
-import pingpong.server.RepoBackendServer
-import pingpong.subsystems.{GitRepoParams, GitRemote, GitCloneBase, GitWorktreeBase}
+import pingpong.protocol.review_backend._
+import pingpong.repo_backends._
+import pingpong.review_backends._
+import pingpong.server._
+import pingpong.subsystems._
 
 import ammonite.ops._
 import com.google.inject.{Provides, Singleton}
@@ -17,6 +22,10 @@ import com.twitter.util.{Await, Future}
 import org.scalatest._
 
 object TestEnvironmentModule extends TwitterModule {
+  lazy val curRepoRoot = Path(%%("git", "rev-parse", "--show-toplevel")(pwd).out.trim)
+  lazy val prevSha = %%("git", "rev-parse", "HEAD~1")(pwd).out.trim
+  lazy val curSha = %%("git", "rev-parse", "HEAD")(pwd).out.trim
+
   lazy val tempDirBase = tmp.dir(deleteOnExit = true)
 
   @Singleton
@@ -31,39 +40,48 @@ object TestEnvironmentModule extends TwitterModule {
         GitRepoParams(GitCloneBase(cloneDir), GitWorktreeBase(checkoutDir)) }
     Await.result(paramsResult)
   }
+
+  @Singleton
+  @Provides
+  def providesGitRepoBackend(params: GitRepoParams): GitRepoBackend = new GitRepoBackend(params)
+
+  @Singleton
+  @Provides
+  def providesGitNotesReviewBackend(params: GitRepoParams): GitNotesReviewBackend =
+    new GitNotesReviewBackend(params)
 }
 
 abstract class AsyncTwitterFeatureTest extends AsyncFunSuite with FeatureTestMixin {
   // `AsyncFunSuite` requires a scala `Future`, so we convert it to one here with the bijection lib.
   def testAsync(msg: String)(f: => Future[org.scalatest.compatible.Assertion]) =
     // FIXME: make this file highlight correctly in ensime!
+    // NB: these failures also occur when using `./pants repl`!
     test(msg)(f.as[scala.concurrent.Future[org.scalatest.compatible.Assertion]])
 }
 
-class ServerFeatureTest extends AsyncTwitterFeatureTest {
+class RepoBackendServerFeatureTest extends AsyncTwitterFeatureTest {
+  import TestEnvironmentModule._
+
   override val server = new EmbeddedThriftServer(
     twitterServer = new RepoBackendServer {
       override def overrideModules = Seq(TestEnvironmentModule)
-  })
+    })
 
-  lazy val client = server.thriftClient[RepoBackend[Future]](clientId = "client123")
+  lazy val repoClient = server.thriftClient[RepoBackend[Future]](clientId = "repo-client")
 
-  lazy val curRepoRoot = Path(%%("git", "rev-parse", "--show-toplevel")(pwd).out.trim)
-  lazy val curSha = %%("git", "rev-parse", "HEAD")(pwd).out.trim
-
-  testAsync("Server#return an error message") {
+  testAsync("Server#perform a git checkout") {
     val request = CheckoutRequest(
       Some(RepoLocation(Some(curRepoRoot.toString))),
       Some(Revision(Some(curSha))))
 
-    client.getCheckout(request)
+    repoClient.getCheckout(request)
       .map { case CheckoutResponse.Completed(Checkout(Some(checkout), Some(repo), Some(rev))) =>
         // TODO: is it kosher to use logic from the `GitRemote` wrapper in this test? Should this be
         // more "from scratch"?
         val remote = GitRemote(repo).asTry.get
         val middleDirname = s"${remote.hashDirname}@${rev.backendRevisionSpec.get}"
         val checkoutsDirUnderTmp = (
-          TestEnvironmentModule.tempDirBase /
+          tempDirBase /
             "checkouts" /
             RelPath(middleDirname) /
             remote.localDirname)
@@ -74,4 +92,56 @@ class ServerFeatureTest extends AsyncTwitterFeatureTest {
         // TODO: do a few more git process invokes, check to see if the checkout is correct
       }
   }
+}
+
+class ReviewBackendServerFeatureTest extends AsyncTwitterFeatureTest {
+  import TestEnvironmentModule._
+
+  override val server = new EmbeddedThriftServer(
+    twitterServer = new ReviewBackendServer {
+      override def overrideModules = Seq(TestEnvironmentModule)
+    })
+
+  lazy val reviewClient = server.thriftClient[ReviewBackend[Future]](clientId = "review-client")
+
+  testAsync("Server#publish and query some pings") {
+    val emptyPing = Ping(
+      Some(PingSource.ThreadComment(ThreadComment())),
+      Some(TargetSpecification(Some(Seq()))),
+      Some(ApprovalSpecification(Some(Seq()))),
+      Some(UserId(Some("someone@example.com"))),
+      Some("some text"))
+
+    val pinnedPing = PinnedPing(Some(emptyPing), Some(Revision(Some(curSha))))
+
+    val collabId = CollaborationId(Some(s"${curRepoRoot.toString}:${prevSha}..${curSha}"))
+
+    val publishRequest = PublishPingsRequest(Some(collabId), Some(Seq(pinnedPing)))
+
+    val writtenPingId = reviewClient.publishPings(publishRequest).map {
+      case PublishPingsResponse.PublishedPings(PingCollection(Some(pingMap))) =>
+        pingMap.toSeq match {
+          case Seq((pingId, returnedPinnedPing)) => {
+            returnedPinnedPing should equal(pinnedPing)
+            pingId
+          }
+        }
+    }
+
+    val collabQuery = CollaborationQuery(Some(Seq(collabId)))
+
+    writtenPingId.flatMap { pingId => reviewClient.queryCollaborations(collabQuery).map {
+      case QueryCollaborationsResponse.MatchedCollaborations(
+        MatchedCollaborations(Some(collabMap))) => {
+        val Seq((returnedCollabId, collab)) = collabMap.toSeq
+        returnedCollabId should equal(collabId)
+
+        // TODO: verify the collaboration's Checkout
+        val Seq((returnedPingId, returnedPinnedPing)) = collab.pings.get.pingMap.get.toSeq
+        returnedPingId should equal(pingId)
+        returnedPinnedPing should equal(pinnedPing)
+      }
+    }}
+  }
+
 }

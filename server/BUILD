@@ -6,7 +6,9 @@ scala_library(
     '3rdparty/jvm:slf4j-impl',
     'io',
     'protocol:repo-backend',
+    'protocol:review-backend',
     'repo-backends',
+    'review-backends',
     'subsystems',
     'util',
   ]

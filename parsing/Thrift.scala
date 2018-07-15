@@ -6,8 +6,6 @@ import com.twitter.bijection.twitter_util.UtilBijections._
 import com.twitter.scrooge.ThriftStruct
 import com.twitter.util.{Try, Throw}
 
-import scala.reflect.ClassTag
-
 trait Thriftable[T <: ThriftStruct] {
   def asThrift: T
 }
@@ -25,17 +23,11 @@ trait ThriftParser[Thrift <: ThriftStruct, S <: Thriftable[Thrift]] {
 
   def apply(thriftStruct: Thrift): ThriftParse
 
-  type DescriptiveThriftParseErrorFactory[E <: Throwable, F <: Throwable] = (String, Thrift, E) => F
+  def thriftParseErrorWrapper(description: String, arg: Thrift, theTry: Try[S]): Try[S]
 
   // TODO: test whether round-trip parsing is equal
-  def asThriftParse[E <: Throwable, F <: Throwable](
-    description: String, arg: Thrift, theTry: Try[S]
-  )(
-    implicit classTagE: ClassTag[E], factory: DescriptiveThriftParseErrorFactory[E, F]
-  ): ThriftParse = {
-    val wrappedTry = theTry.rescue { case e: E if classTagE.runtimeClass.isInstance(e) =>
-      Throw(factory(description, arg, e))
-    }
+  def asThriftParse[X <: S](description: String, arg: Thrift, theTry: Try[S]): ThriftParse = {
+    val wrappedTry = thriftParseErrorWrapper(description, arg, theTry)
     ThriftParseResult(wrappedTry)
   }
 }
@@ -57,17 +49,11 @@ trait StringParser[S <: HasCanonicalString] {
 
   def apply(str: String): StringParse
 
-  type DescriptiveStringParseErrorFactory[E <: Throwable, F <: Throwable] = (String, String, E) => F
+  def stringParseErrorWrapper(description: String, arg: String, theTry: Try[S]): Try[S]
 
   // TODO: test whether round-trip parsing is equal
-  def asStringParse[E <: Throwable, F <: Throwable](
-    description: String, arg: String, theTry: Try[S]
-  )(
-    implicit classTagE: ClassTag[E], factory: DescriptiveStringParseErrorFactory[E, F]
-  ): StringParse = {
-    val wrappedTry = theTry.rescue { case e: E if classTagE.runtimeClass.isInstance(e) =>
-      Throw(factory(description, arg, e))
-    }
+  def asStringParse(description: String, arg: String, theTry: Try[S]): StringParse = {
+    val wrappedTry = stringParseErrorWrapper(description, arg, theTry)
     StringParseResult(wrappedTry)
   }
 }

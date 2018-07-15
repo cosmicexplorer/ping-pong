@@ -1,5 +1,6 @@
 package pingpong.review_backends
 
+import pingpong.util.ErrorExt._
 import pingpong.util.FutureTryExt._
 import pingpong.protocol.review_backend._
 import pingpong.subsystems._
@@ -15,7 +16,7 @@ class GitNotesReviewBackend(repoParams: GitRepoParams) extends ReviewBackend.Met
       QueryCollaborationsResponse.MatchedCollaborations(matchedCollabs.asThrift)
     })
     .rescue { case e => Future {
-      QueryCollaborationsResponse.Error(ReviewBackendError(Some(e.toString)))
+      QueryCollaborationsResponse.Error(ReviewBackendError(Some(e.asStackTrace)))
     }}
 
   override def publishPings(
@@ -24,6 +25,6 @@ class GitNotesReviewBackend(repoParams: GitRepoParams) extends ReviewBackend.Met
     .constFuture
     .flatMap(_.publish(repoParams).map(ps => PublishPingsResponse.PublishedPings(ps.asThrift)))
     .rescue { case e => Future {
-      PublishPingsResponse.Error(ReviewBackendError(Some(e.toString)))
+      PublishPingsResponse.Error(new ReviewBackendError(Some(e.asStackTrace)))
     }}
 }

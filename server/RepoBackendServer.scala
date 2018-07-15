@@ -1,32 +1,42 @@
 package pingpong.server
 
-import pingpong.io._
-import pingpong.protocol.repo_backend.{
-  CheckoutResponse,
-  RepoBackend,
-  RepoBackendError,
-}
+import pingpong.protocol.repo_backend._
+import pingpong.protocol.review_backend._
 import pingpong.repo_backends._
+import pingpong.review_backends._
 import pingpong.subsystems.GitRepoParams
 
-import ammonite.ops._
 import com.twitter.finatra.thrift._
 import com.twitter.finatra.thrift.routing.ThriftRouter
 import com.twitter.inject.Logging
+import com.twitter.scrooge.ToThriftService
 
 import javax.inject.Inject
 
-class RepoBackendController @Inject() (params: GitRepoParams)
+class RepoBackendController @Inject() (repoBackend: GitRepoBackend)
     extends Controller
     with RepoBackend.ServicePerEndpoint {
-  override val getCheckout = handle(RepoBackend.GetCheckout) { args: RepoBackend.GetCheckout.Args =>
-    new GitRepoBackend(params).getCheckout(args.request)
+  override val getCheckout = handle(RepoBackend.GetCheckout) { args =>
+    repoBackend.getCheckout(args.request)
   }
 }
 
 class RepoBackendServer extends ThriftServer with Logging {
-  override def configureThrift(router: ThriftRouter): Unit = {
-    router
-      .add[RepoBackendController]
+  override def configureThrift(router: ThriftRouter): Unit = router.add[RepoBackendController]
+}
+
+class ReviewBackendController @Inject() (reviewBackend: GitNotesReviewBackend)
+    extends Controller
+    with ReviewBackend.ServicePerEndpoint {
+  override val queryCollaborations = handle(ReviewBackend.QueryCollaborations) { args =>
+    reviewBackend.queryCollaborations(args.query)
   }
+
+  override val publishPings = handle(ReviewBackend.PublishPings) { args =>
+    reviewBackend.publishPings(args.request)
+  }
+}
+
+class ReviewBackendServer extends ThriftServer with Logging {
+  override def configureThrift(router: ThriftRouter): Unit = router.add[ReviewBackendController]
 }

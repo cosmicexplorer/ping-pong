@@ -34,15 +34,30 @@ trait GitCommandArg extends HasCanonicalString {
   def asCommandLineArg: String = asCanonicalString
 }
 
+trait GitThriftParser[T <: ThriftStruct, S <: Thriftable[T]] extends ThriftParser[T, S] {
+  implicit def thriftParseOptionalDerefErrorFactory[O](fieldName: String): Try[O] =
+    Throw(GitThriftParseError(s"field ${fieldName} must be provided"))
+
+  override def thriftParseErrorWrapper(description: String, arg: T, theTry: Try[S]): Try[S] =
+    theTry.rescue {
+      case e: GitError => Throw(GitObjectMarshalError(s"${description} ${arg} is invalid", e))
+    }
+}
+
+trait GitStringParser[T <: HasCanonicalString] extends StringParser[T] {
+  override def stringParseErrorWrapper(description: String, arg: String, theTry: Try[T]): Try[T] =
+    theTry.rescue {
+      case e: GitError => Throw(GitStringParseError(s"${description} '${arg}' is invalid", e))
+    }
+}
+
 case class GitObjectHash(checksum: String) extends GitCommandArg {
   override def asCanonicalString: String = checksum
 }
 
 case class GitStringParseError(message: String, base: Throwable) extends GitError(message, base)
 
-object GitObjectHash extends StringParser[GitObjectHash] {
-  import GitParseImplicits._
-
+object GitObjectHash extends GitStringParser[GitObjectHash] {
   val maxLengthShaPattern = rx"\A[0-9a-f]{40}\Z"
 
   def apply(checksum: String) = asStringParse("checksum", checksum,
@@ -62,10 +77,8 @@ case class GitRevision(objHash: GitObjectHash) extends Thriftable[Revision] with
 }
 
 object GitRevision
-    extends ThriftParser[Revision, GitRevision]
-    with StringParser[GitRevision] {
-  import GitParseImplicits._
-
+    extends GitThriftParser[Revision, GitRevision]
+    with GitStringParser[GitRevision] {
   override def apply(revision: Revision) = asThriftParse("revision", revision,
     revision.backendRevisionSpec.derefOptionalField("revision specification")
       .flatMap(GitRevision(_).asTry))
@@ -143,10 +156,8 @@ case class LocalFilesystemRepo(rootDir: Path) extends GitRemote {
 }
 
 object GitRemote
-    extends ThriftParser[RepoLocation, GitRemote]
-    with StringParser[GitRemote] {
-  import GitParseImplicits._
-
+    extends GitThriftParser[RepoLocation, GitRemote]
+    with GitStringParser[GitRemote] {
   override def apply(location: RepoLocation): ThriftParse = asThriftParse("git remote", location,
     location.backendLocationSpec
       .derefOptionalField("repo location specification")
@@ -174,11 +185,22 @@ case class GitCheckedOutWorktree(
     Checkout(Some(checkoutLocation), Some(cloneResult.source.asThrift), Some(revision.asThrift))
   }
 
+  // FIXME: do something smarter than just appending! try merging/etc!
+  private def insertPinnedPing(
+    pingId: GitNotesPingId, pinnedPingToPin: GitNotesPinnedPing
+  ): Future[GitNotesPingEntry] = Process(Seq(
+    "git", "notes", "append",
+    "-C", pingId.asCommandLineArg,
+    pinnedPingToPin.rev.asCommandLineArg),
+    cwd = dir.asFile)
+    .executeForOutput
+    .map(_ => GitNotesPingEntry(pingId, pinnedPingToPin))
+
   def makePingEntry(pinnedPing: GitNotesPinnedPing): Future[GitNotesPingEntry] =
     Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = dir.asFile)
       .executeForOutput(pinnedPing.ping.asThrift.toPlaintextStdin)
       .flatTry(output => GitNotesPingId(output.stdout.trim).asTry)
-      .map(GitNotesPingEntry(_, pinnedPing))
+      .flatMap(insertPinnedPing(_, pinnedPing))
 }
 
 case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
@@ -240,9 +262,7 @@ case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
   }
 }
 
-object GitCheckoutRequest extends ThriftParser[CheckoutRequest, GitCheckoutRequest] {
-  import GitParseImplicits._
-
+object GitCheckoutRequest extends GitThriftParser[CheckoutRequest, GitCheckoutRequest] {
   // TODO: this could be a `StringParser` as well?
   override def apply(request: CheckoutRequest) = {
     val source = request.source.derefOptionalField("source").flatMap(GitRemote(_).asTry)
@@ -262,10 +282,8 @@ case class GitUser(email: String) extends Thriftable[UserId] with HasCanonicalSt
 }
 
 object GitUser
-    extends ThriftParser[UserId, GitUser]
-    with StringParser[GitUser] {
-  import GitParseImplicits._
-
+    extends GitThriftParser[UserId, GitUser]
+    with GitStringParser[GitUser] {
   // From https://stackoverflow.com/a/13087910/2518889 -- should use a more legitimate solution, but
   // email as the sole identifier should be revised anyway.
   val emailRegex = rx"\A([0-9a-zA-Z](?>[-.\w]*[0-9a-zA-Z])*@(?>[0-9a-zA-Z][-\w]*[0-9a-zA-Z]\.)+[a-zA-Z]{2,9})\Z"
@@ -287,9 +305,7 @@ case class GitLineRange(beg: Int, end: Int) extends Thriftable[LineRangeForFile]
   def asThrift = LineRangeForFile(Some(beg), Some(end))
 }
 
-object GitLineRange extends ThriftParser[LineRangeForFile, GitLineRange] {
-  import GitParseImplicits._
-
+object GitLineRange extends GitThriftParser[LineRangeForFile, GitLineRange] {
   override def apply(range: LineRangeForFile) = asThriftParse("line range", range, {
     val rangeBegin = range.beginning.derefOptionalField("beginning of line range")
       .flatMap(beg => if (beg >= 1) Return(beg) else Throw(GitLocationParseError(
@@ -307,9 +323,7 @@ case class GitRepoFile(pathFromRepoRoot: RelPath) extends Thriftable[RepoFile] {
   override def asThrift = RepoFile(Some(pathFromRepoRoot.asStringPath))
 }
 
-object GitRepoFile extends ThriftParser[RepoFile, GitRepoFile] {
-  import GitParseImplicits._
-
+object GitRepoFile extends GitThriftParser[RepoFile, GitRepoFile] {
   override def apply(repoFile: RepoFile) = asThriftParse("repo file", repoFile,
     repoFile.fileRelativePath.derefOptionalField("file relative path")
       .map(RelPath(_))
@@ -321,9 +335,7 @@ case class GitFileWithRange(repoFile: GitRepoFile, range: Option[GitLineRange])
   override def asThrift = FileWithRange(Some(repoFile.asThrift), range.map(_.asThrift))
 }
 
-object GitFileWithRange extends ThriftParser[FileWithRange, GitFileWithRange] {
-  import GitParseImplicits._
-
+object GitFileWithRange extends GitThriftParser[FileWithRange, GitFileWithRange] {
   override def apply(fileWithRange: FileWithRange) = asThriftParse(
     "file with range", fileWithRange, {
       val repoFile = fileWithRange.file.derefOptionalField("file").flatMap(GitRepoFile(_).asTry)
@@ -337,9 +349,7 @@ case class GitHunk(range: GitFileWithRange) extends Thriftable[Hunk] {
   override def asThrift = Hunk(Some(range.asThrift))
 }
 
-object GitHunk extends ThriftParser[Hunk, GitHunk] {
-  import GitParseImplicits._
-
+object GitHunk extends GitThriftParser[Hunk, GitHunk] {
   override def apply(hunk: Hunk) = asThriftParse("hunk", hunk,
     hunk.fileWithRange.derefOptionalField("fileWithRange")
       .flatMap(GitFileWithRange(_).asTry.map(GitHunk(_))))
@@ -349,9 +359,7 @@ case class GitNotesPingLocation(hunks: Seq[GitHunk]) extends Thriftable[PingLoca
   override def asThrift = PingLocation(Some(hunks.map(_.asThrift)))
 }
 
-object GitNotesPingLocation extends ThriftParser[PingLocation, GitNotesPingLocation] {
-  import GitParseImplicits._
-
+object GitNotesPingLocation extends GitThriftParser[PingLocation, GitNotesPingLocation] {
   override def apply(pingLocation: PingLocation) = asThriftParse("ping location", pingLocation,
     pingLocation.hunkCollection.derefOptionalField("hunkCollection").flatMap {
       case Seq() => Throw(GitLocationParseError(
@@ -371,9 +379,7 @@ case class GitNotesRegionComment(pingLocation: GitNotesPingLocation) extends Git
     RegionComment(Some(pingLocation.asThrift)))
 }
 
-object GitNotesRegionComment extends ThriftParser[PingSource, GitNotesPingSource] {
-  import GitParseImplicits._
-
+object GitNotesRegionComment extends GitThriftParser[PingSource, GitNotesPingSource] {
   // FIXME: make it so we can do the actual specific union type only here
   override def apply(regSrc: PingSource) = asThriftParse("region comment", regSrc, regSrc match {
     case PingSource.RegionComment(regCom) => regCom.pingLocation.derefOptionalField("ping location")
@@ -397,10 +403,8 @@ case class GitNotesPingId(gitObj: GitObjectHash)
 }
 
 object GitNotesPingId
-    extends ThriftParser[PingId, GitNotesPingId]
-    with StringParser[GitNotesPingId] {
-  import GitParseImplicits._
-
+    extends GitThriftParser[PingId, GitNotesPingId]
+    with GitStringParser[GitNotesPingId] {
   override def apply(pingId: PingId) = asThriftParse("ping id", pingId,
     pingId.pid.derefOptionalField("pid")
       .flatMap(GitNotesPingId(_).asTry))
@@ -414,9 +418,7 @@ case class GitNotesReply(parent: GitNotesPingId) extends GitNotesPingSource {
   override def asThrift = PingSource.Reply(Reply(Some(parent.asThrift)))
 }
 
-object GitNotesReply extends ThriftParser[PingSource, GitNotesPingSource] {
-  import GitParseImplicits._
-
+object GitNotesReply extends GitThriftParser[PingSource, GitNotesPingSource] {
   // FIXME: make it so we can do the actual specific union type only here
   override def apply(replySrc: PingSource) = asThriftParse("reply", replySrc, replySrc match {
     case PingSource.Reply(reply) => reply.parent.derefOptionalField("parent")
@@ -426,9 +428,7 @@ object GitNotesReply extends ThriftParser[PingSource, GitNotesPingSource] {
   })
 }
 
-object GitNotesPingSource extends ThriftParser[PingSource, GitNotesPingSource] {
-  import GitParseImplicits._
-
+object GitNotesPingSource extends GitThriftParser[PingSource, GitNotesPingSource] {
   override def apply(pingSource: PingSource) = asThriftParse("ping source", pingSource,
     pingSource match {
       case regCom: PingSource.RegionComment => GitNotesRegionComment(regCom).asTry
@@ -455,9 +455,7 @@ case class GitNotesPing(
   )
 }
 
-object GitNotesPing extends ThriftParser[Ping, GitNotesPing] {
-  import GitParseImplicits._
-
+object GitNotesPing extends GitThriftParser[Ping, GitNotesPing] {
   override def apply(ping: Ping) = asThriftParse("ping", ping,
     ping match {
       case Ping(
@@ -474,9 +472,7 @@ case class GitNotesPinnedPing(ping: GitNotesPing, rev: GitRevision) extends Thri
   override def asThrift = PinnedPing(Some(ping.asThrift), Some(rev.asThrift))
 }
 
-object GitNotesPinnedPing extends ThriftParser[PinnedPing, GitNotesPinnedPing] {
-  import GitParseImplicits._
-
+object GitNotesPinnedPing extends GitThriftParser[PinnedPing, GitNotesPinnedPing] {
   override def apply(pinnedPing: PinnedPing) = asThriftParse("pinned ping", pinnedPing, {
     val wrappedPing = pinnedPing.ping.derefOptionalField("ping")
       .flatMap(GitNotesPing(_).asTry)
@@ -504,10 +500,8 @@ case class GitRevisionRange(begin: GitRevision, end: GitRevision)
 }
 
 object GitRevisionRange
-    extends ThriftParser[RevisionRange, GitRevisionRange]
-    with StringParser[GitRevisionRange] {
-  import GitParseImplicits._
-
+    extends GitThriftParser[RevisionRange, GitRevisionRange]
+    with GitStringParser[GitRevisionRange] {
   val maxLengthShaRange = rx"\A([0-9a-f]{40})\.\.([0-9a-f]{40})\Z"
 
   override def apply(range: RevisionRange) = asThriftParse("revision range", range,
@@ -537,6 +531,7 @@ case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisi
     lines: Seq[String]
   ): Try[Seq[GitNotesPinnedPingId]] = {
     val notesTries: Seq[Try[Option[GitNotesPinnedPingId]]] = lines.map {
+      case "" => Return(None)
       case GitCheckoutPingSpan.notesListLine(notesRef, commitRef) => {
         GitObjectHash(notesRef).asTry.join(GitRevision(commitRef).asTry).map {
           case (notesObj, commitRev) => revsInRange(commitRev) match {
@@ -577,6 +572,7 @@ object GitCheckoutPingSpan {
 // TODO: we would probably want to allow more than just a SHA range, otherwise we'd need a new
 // checkout every time we fetch from the remote. Allowing an arbitrary ref-like, for both ends of
 // the range, should suffice (???).
+// Note that git-worktree(1) states that refs are shared across all working trees.
 case class GitNotesCollaborationId(source: GitRemote, revisionRange: GitRevisionRange)
     extends Thriftable[CollaborationId]
     with HasCanonicalString {
@@ -596,10 +592,8 @@ case class GitNotesCollaborationId(source: GitRemote, revisionRange: GitRevision
 }
 
 object GitNotesCollaborationId
-    extends ThriftParser[CollaborationId, GitNotesCollaborationId]
-    with StringParser[GitNotesCollaborationId] {
-  import GitParseImplicits._
-
+    extends GitThriftParser[CollaborationId, GitNotesCollaborationId]
+    with GitStringParser[GitNotesCollaborationId] {
   val collabRequestPattern = rx"\A([^:]+):([^:]+)\Z"
 
   override def apply(collabId: CollaborationId) = asThriftParse("collaboration id", collabId,
@@ -656,9 +650,7 @@ case class GitNotesCollaborationQuery(collabIds: Seq[GitNotesCollaborationId])
 }
 
 object GitNotesCollaborationQuery
-    extends ThriftParser[CollaborationQuery, GitNotesCollaborationQuery] {
-  import GitParseImplicits._
-
+    extends GitThriftParser[CollaborationQuery, GitNotesCollaborationQuery] {
   override def apply(query: CollaborationQuery) = asThriftParse("collaboration query", query,
     query.collaborationIds.derefOptionalField("collaborationIds").flatMap {
       case Seq() => Throw(GitCollaborationResolutionError(
@@ -686,9 +678,7 @@ case class GitNotesPublishPingsRequest(
 }
 
 object GitNotesPublishPingsRequest
-    extends ThriftParser[PublishPingsRequest, GitNotesPublishPingsRequest] {
-  import GitParseImplicits._
-
+    extends GitThriftParser[PublishPingsRequest, GitNotesPublishPingsRequest] {
   override def apply(request: PublishPingsRequest) = asThriftParse(
     "publish pings request", request, {
       val collabId = request.collaborationId.derefOptionalField("collaboration id")
@@ -700,19 +690,4 @@ object GitNotesPublishPingsRequest
         case (cid, pings) => GitNotesPublishPingsRequest(cid, pings)
       }
     })
-}
-
-object GitParseImplicits {
-  implicit def thriftParseError[T](fieldName: String): Try[T] =
-    Throw(GitThriftParseError(s"field ${fieldName} must be provided"))
-
-  implicit val classTagGitError: ClassTag[GitError] = classTag[GitError]
-
-  implicit def objectMarshalError[T <: ThriftStruct](
-    description: String, arg: T, e: GitError
-  ): GitObjectMarshalError = GitObjectMarshalError(s"${description} ${arg} is invalid", e)
-
-  implicit def stringParseError(
-    description: String, arg: String, e: GitError
-  ): GitStringParseError = GitStringParseError(s"${description} '${arg}' is invalid", e)
 }
