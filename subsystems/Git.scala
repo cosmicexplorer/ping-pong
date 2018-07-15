@@ -539,9 +539,10 @@ case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisi
     val notesTries: Seq[Try[Option[GitNotesPinnedPingId]]] = lines.map {
       case GitCheckoutPingSpan.notesListLine(notesRef, commitRef) => {
         GitObjectHash(notesRef).asTry.join(GitRevision(commitRef).asTry).map {
-          case (notesObj, commitRev) => if (revsInRange(commitRev)) {
-            Some(GitNotesPinnedPingId(GitNotesPingId(notesObj), commitRev))
-          } else None
+          case (notesObj, commitRev) => revsInRange(commitRev) match {
+            case true => Some(GitNotesPinnedPingId(GitNotesPingId(notesObj), commitRev))
+            case false => None
+          }
         }
       }
       case line => Throw(GitNotesListParseError(
