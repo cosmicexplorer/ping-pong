@@ -8,5 +8,6 @@ scala_library(
     'protocol:review-backend',
     'repo-backends',
     'subsystems',
+    'util',
   ],
 )

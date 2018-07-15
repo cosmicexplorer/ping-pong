@@ -8,5 +8,6 @@ scala_library(
     'parsing',
     'protocol:repo-backend',
     'protocol:review-backend',
+    'util',
   ],
 )

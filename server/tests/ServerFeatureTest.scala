@@ -36,6 +36,7 @@ object TestEnvironmentModule extends TwitterModule {
 abstract class AsyncTwitterFeatureTest extends AsyncFunSuite with FeatureTestMixin {
   // `AsyncFunSuite` requires a scala `Future`, so we convert it to one here with the bijection lib.
   def testAsync(msg: String)(f: => Future[org.scalatest.compatible.Assertion]) =
+    // FIXME: make this file highlight correctly in ensime!
     test(msg)(f.as[scala.concurrent.Future[org.scalatest.compatible.Assertion]])
 }
 
@@ -50,7 +51,6 @@ class ServerFeatureTest extends AsyncTwitterFeatureTest {
   lazy val curRepoRoot = Path(%%("git", "rev-parse", "--show-toplevel")(pwd).out.trim)
   lazy val curSha = %%("git", "rev-parse", "HEAD")(pwd).out.trim
 
-  // FIXME: make this highlight correctly in ensime!
   testAsync("Server#return an error message") {
     val request = CheckoutRequest(
       Some(RepoLocation(Some(curRepoRoot.toString))),

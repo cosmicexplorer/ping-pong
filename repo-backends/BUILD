@@ -6,5 +6,6 @@ scala_library(
     'protocol:repo-backend',
     'parsing',
     'subsystems',
+    'util',
   ],
 )

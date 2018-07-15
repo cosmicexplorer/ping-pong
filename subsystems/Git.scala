@@ -1,7 +1,6 @@
 package pingpong.subsystems
 
 import pingpong.io._
-import pingpong.io.FutureTryExt._
 import pingpong.io.PathExt._
 import pingpong.io.ProcessExt._
 import pingpong.parsing._
@@ -11,6 +10,8 @@ import pingpong.protocol.notifications._
 import pingpong.protocol.pingpong._
 import pingpong.protocol.repo_backend._
 import pingpong.protocol.review_backend._
+import pingpong.util.FutureTryExt._
+import pingpong.util.StringExt._
 
 import ammonite.ops._
 import com.twitter.bijection._
@@ -45,9 +46,10 @@ object GitObjectHash extends StringParser[GitObjectHash] {
   val maxLengthShaPattern = rx"\A[0-9a-f]{40}\Z"
 
   def apply(checksum: String) = asStringParse("checksum", checksum,
-    maxLengthShaPattern.findFirstIn(checksum)
-      .map(validChecksum => Return(new GitObjectHash(validChecksum)))
-      .getOrElse(Throw(GitObjectHashParseError(s"string must match ${maxLengthShaPattern}"))))
+    maxLengthShaPattern.findFirstIn(checksum) match {
+      case Some(validChecksum) => Return(new GitObjectHash(validChecksum))
+      case None => Throw(GitObjectHashParseError(s"string must match ${maxLengthShaPattern}"))
+    })
 }
 
 case class GitThriftParseError(message: String) extends GitError(message)
@@ -99,36 +101,37 @@ sealed trait GitRemote extends GitCommandArg with Thriftable[RepoLocation] {
   private def fetchVerifyCloneDir(cloneDir: Directory): Future[GitCloneResultLocalDirectory] = {
     val cloneIntoDir = cloneDir.path / localDirname
     // If the clone directory doesn't exist, clone it.
-    val clonedDir = Directory.maybeExistingDir(cloneIntoDir).flatMap(_.map(Future(_)).getOrElse {
-      Process(Seq("git", "clone", asCommandLineArg, cloneIntoDir.asStringPath))
-        .executeForOutput
-        .flatMap(_ => Directory(cloneIntoDir))
-    })
+    val clonedDir = Directory.maybeExistingDir(cloneIntoDir).flatMap {
+      case Some(existingClone) => Future(existingClone)
+      case None => Process(Seq("git", "clone", asCommandLineArg, cloneIntoDir.asStringPath))
+          .executeForOutput
+          .flatMap(_ => Directory(cloneIntoDir))
+    }
 
     // Verify that the checked-out repo's origin is what we expected.
     clonedDir.flatMap { checkoutDir =>
       Process(Seq("git", "remote", "get-url", "origin"), cwd = checkoutDir.asFile)
         .executeForOutput
-        .flatMap { case OutputStrings(stdout, _) => {
+        .flatTry { case OutputStrings(stdout, _) => {
           val repoRemote = stdout.trim
           val expectedRemote = gitRemoteAddress
           if (repoRemote == expectedRemote) {
-            Future(GitCloneResultLocalDirectory(this, checkoutDir))
+            Return(GitCloneResultLocalDirectory(this, checkoutDir))
           } else {
             val errMsg = (
               s"Clone directory ${checkoutDir} did not point to " +
                 s"expected git remote ${expectedRemote} (was: ${repoRemote}).")
-            Future.const(Throw(GitCacheError(errMsg)))
+            Throw(GitCacheError(errMsg))
           }
         }
         }
     }
   }
 
-  def performClone(cloneBase: GitCloneBase): Future[GitCloneResultLocalDirectory] = {
-    getOrCreateCloneDir(cloneBase.dir).flatMap(Directory(_))
+  def performClone(cloneBase: GitCloneBase): Future[GitCloneResultLocalDirectory] =
+    getOrCreateCloneDir(cloneBase.dir)
+      .flatMap(Directory(_))
       .flatMap(fetchVerifyCloneDir)
-  }
 }
 
 case class GitInputParseError(message: String) extends GitError(message)
@@ -136,11 +139,7 @@ case class GitInputParseError(message: String) extends GitError(message)
 case class LocalFilesystemRepo(rootDir: Path) extends GitRemote {
   override protected def gitRemoteAddress: String = rootDir.toString
   override def localDirname: RelPath = rootDir.last
-  override def hashDirname: RelPath = {
-    // TODO: generic string join method somewhere!
-    val dirJoined = rootDir.segments.reduce((acc, cur) => s"${acc}-${cur}")
-    s"local:${dirJoined}"
-  }
+  override def hashDirname: RelPath = s"local:${rootDir.segments.join("-")}"
 }
 
 object GitRemote
@@ -175,12 +174,11 @@ case class GitCheckedOutWorktree(
     Checkout(Some(checkoutLocation), Some(cloneResult.source.asThrift), Some(revision.asThrift))
   }
 
-  def makePingEntry(pinnedPing: GitNotesPinnedPing): Future[GitNotesPingEntry] = {
+  def makePingEntry(pinnedPing: GitNotesPinnedPing): Future[GitNotesPingEntry] =
     Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = dir.asFile)
       .executeForOutput(pinnedPing.ping.asThrift.toPlaintextStdin)
-      .flatMap(output => GitNotesPingId(output.stdout.trim).asTry.constFuture)
+      .flatTry(output => GitNotesPingId(output.stdout.trim).asTry)
       .map(GitNotesPingEntry(_, pinnedPing))
-  }
 }
 
 case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
@@ -201,30 +199,29 @@ case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
     val intoWorktreeDir = worktreeDir.path / cloneResult.source.localDirname
     // If the worktree directory doesn't exist, clone it.
     // FIXME: this should be unique per collaboration (???)
-    val worktreeDirCloned = Directory.maybeExistingDir(intoWorktreeDir)
-      .flatMap(_.map(Future(_)).getOrElse {
-        val processRequest = Process(
-          Seq("git", "worktree", "add", intoWorktreeDir.asStringPath, revision.asCommandLineArg),
-          cwd = cloneResult.dir.asFile)
-
-        processRequest.executeForOutput
+    val worktreeDirCloned = Directory.maybeExistingDir(intoWorktreeDir).flatMap {
+      case Some(existingWorktree) => Future(existingWorktree)
+      case None => Process(Seq(
+        "git", "worktree", "add", intoWorktreeDir.asStringPath, revision.asCommandLineArg),
+        cwd = cloneResult.dir.asFile)
+          .executeForOutput
           .flatMap(_ => Directory(intoWorktreeDir))
-      })
+    }
 
     // Verify that the checked-out worktree is at the right revision.
     worktreeDirCloned.flatMap { checkedOutWorktreeDir =>
       Process(Seq("git", "rev-parse", "HEAD"), cwd = checkedOutWorktreeDir.asFile)
         .executeForOutput
-        .flatMap { case OutputStrings(stdout, _) => {
+        .flatTry { case OutputStrings(stdout, _) => {
           val repoRevision = stdout.trim
           val expectedRevision = revision.asCanonicalString
           if (repoRevision == expectedRevision) {
-            Future(GitCheckedOutWorktree(cloneResult, revision, checkedOutWorktreeDir))
+            Return(GitCheckedOutWorktree(cloneResult, revision, checkedOutWorktreeDir))
           } else {
             val errMsg = (
               s"Worktree directory ${checkedOutWorktreeDir} did not point to " +
                 s"expected revision ${revision} (was: ${repoRevision}).")
-            Future.const(Throw(GitCacheError(errMsg)))
+            Throw(GitCacheError(errMsg))
           }
         }}
     }
@@ -327,15 +324,12 @@ case class GitFileWithRange(repoFile: GitRepoFile, range: Option[GitLineRange])
 object GitFileWithRange extends ThriftParser[FileWithRange, GitFileWithRange] {
   import GitParseImplicits._
 
-  override def apply(fileWithRange: FileWithRange) = asThriftParse("file with range", fileWithRange,
-    {
+  override def apply(fileWithRange: FileWithRange) = asThriftParse(
+    "file with range", fileWithRange, {
       val repoFile = fileWithRange.file.derefOptionalField("file").flatMap(GitRepoFile(_).asTry)
-      val lineRange: Option[Try[GitLineRange]] = fileWithRange.lineRangeInFile
-        .map(GitLineRange(_).asTry)
+      val lineRange = fileWithRange.lineRangeInFile.map(GitLineRange(_).asTry).flipTryOpt
 
-      repoFile.flatMap(file => lineRange.map(_.map(file -> Some(_))).getOrElse {
-        Return(file -> None)
-      }).map { case (file, range) => GitFileWithRange(file, range) }
+      repoFile.join(lineRange).map { case (file, rangeOpt) => GitFileWithRange(file, rangeOpt) }
     })
 }
 
@@ -536,7 +530,7 @@ case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisi
       Seq("git", "log", "--pretty=format:%H", range.asCommandLineArg),
       cwd = checkout.dir.asFile)
     .executeForOutput
-    .flatMap(_.stdoutLines.map(GitRevision(_).asTry.constFuture).collectFutures)
+    .flatTry(_.stdoutLines.map(GitRevision(_).asTry).collectTries)
 
   private def getNotesObjects(
     revsInRange: Set[GitRevision],
@@ -560,7 +554,7 @@ case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisi
   private def pingEntryForId(pinnedPingId: GitNotesPinnedPingId): Future[GitNotesPingEntry] = {
     Process(Seq("git", "show", pinnedPingId.pingId.asCommandLineArg), cwd = checkout.dir.asFile)
       .executeForThriftStruct[Ping, Ping.type](Ping)
-      .flatMap(GitNotesPing(_).asTry.constFuture)
+      .flatTry(GitNotesPing(_).asTry)
       .map(p => GitNotesPingEntry(pinnedPingId.pingId, GitNotesPinnedPing(p, pinnedPingId.rev)))
   }
 
@@ -569,11 +563,9 @@ case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisi
   def getPings: Future[GitNotesPingCollection] = allRevisionsInRange.map(_.toSet).flatMap { revs =>
     Process(Seq("git", "notes", "list"), cwd = checkout.dir.asFile)
       .executeForOutput
-      .flatMap { out => getNotesObjects(revs, out.stdoutLines)
-        .constFuture
-        .flatMap(_.map(pingEntryForId).collectFutures)
-        .map(GitNotesPingCollection(_))
-      }
+      .flatTry(out => getNotesObjects(revs, out.stdoutLines))
+      .flatMap(_.map(pingEntryForId).collectFutures)
+      .map(GitNotesPingCollection(_))
   }
 }
 
@@ -696,8 +688,8 @@ object GitNotesPublishPingsRequest
     extends ThriftParser[PublishPingsRequest, GitNotesPublishPingsRequest] {
   import GitParseImplicits._
 
-  override def apply(request: PublishPingsRequest) = asThriftParse("publish pings request", request,
-    {
+  override def apply(request: PublishPingsRequest) = asThriftParse(
+    "publish pings request", request, {
       val collabId = request.collaborationId.derefOptionalField("collaboration id")
         .flatMap(GitNotesCollaborationId(_).asTry)
       val publishPingSet = request.pinnedPings.derefOptionalField("pings to publish")

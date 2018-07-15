@@ -1,6 +1,6 @@
 package pingpong.repo_backends
 
-import pingpong.io.FutureTryExt._
+import pingpong.util.FutureTryExt._
 import pingpong.protocol.repo_backend._
 import pingpong.subsystems._
 

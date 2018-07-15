@@ -1,6 +1,6 @@
 package pingpong.review_backends
 
-import pingpong.io.FutureTryExt._
+import pingpong.util.FutureTryExt._
 import pingpong.protocol.review_backend._
 import pingpong.subsystems._
 
@@ -22,7 +22,7 @@ class GitNotesReviewBackend(repoParams: GitRepoParams) extends ReviewBackend.Met
     request: PublishPingsRequest
   ): Future[PublishPingsResponse] = GitNotesPublishPingsRequest(request).asTry
     .constFuture
-    .flatMap(_.publish(repoParams).map(pings => PublishPingsResponse.PublishedPings(pings.asThrift)))
+    .flatMap(_.publish(repoParams).map(ps => PublishPingsResponse.PublishedPings(ps.asThrift)))
     .rescue { case e => Future {
       PublishPingsResponse.Error(ReviewBackendError(Some(e.toString)))
     }}
