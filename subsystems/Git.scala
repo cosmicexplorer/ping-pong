@@ -558,8 +558,8 @@ case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisi
       .map(p => GitNotesPingEntry(pinnedPingId.pingId, GitNotesPinnedPing(p, pinnedPingId.rev)))
   }
 
-  // TODO: have a global notes db so we don't have to list every note in the current repo, then
-  // parse it as we do here. This is definitely fine for now.
+  // TODO: have a notes cache so we don't have to list every note in the current revision range,
+  // then parse it as we do here. This is definitely fine for now, though.
   def getPings: Future[GitNotesPingCollection] = allRevisionsInRange.map(_.toSet).flatMap { revs =>
     Process(Seq("git", "notes", "list"), cwd = checkout.dir.asFile)
       .executeForOutput
