@@ -14,12 +14,9 @@ import pingpong.util.FutureTryExt._
 import pingpong.util.StringExt._
 
 import ammonite.ops._
-import com.twitter.bijection._
-import com.twitter.bijection.Conversion.asMethod
 import com.twitter.util.{Try, Return, Throw, Future}
 import com.twitter.scrooge.ThriftStruct
 
-import scala.reflect.{ClassTag, classTag}
 import scala.sys.process._
 
 class GitError(message: String, base: Throwable) extends RuntimeException(message, base) {
@@ -178,31 +175,12 @@ case class GitRepoParams(cloneBase: GitCloneBase, worktreeBase: GitWorktreeBase)
 case class GitCheckedOutWorktree(
   cloneResult: GitCloneResultLocalDirectory,
   revision: GitRevision,
-  dir: Directory,
-) extends Thriftable[Checkout] {
+  dir: Directory)
+    extends Thriftable[Checkout] {
   override def asThrift = {
     val checkoutLocation = CheckoutLocation(Some(dir.asStringPath))
     Checkout(Some(checkoutLocation), Some(cloneResult.source.asThrift), Some(revision.asThrift))
   }
-
-  // FIXME: do something smarter than just appending! try merging/etc!
-  // FIXME: only return a GitNotesPinnedPing once we actually insert it! call what we have now a
-  // GitNotesPinnedPingRequest!
-  private def insertPinnedPing(
-    pingId: GitNotesPingId, pinnedPingToPin: GitNotesPinnedPing
-  ): Future[GitNotesPingEntry] = Process(Seq(
-    "git", "notes", "append",
-    "-C", pingId.asCommandLineArg,
-    pinnedPingToPin.rev.asCommandLineArg),
-    cwd = dir.asFile)
-    .executeForOutput
-    .map(_ => GitNotesPingEntry(pingId, pinnedPingToPin))
-
-  def makePingEntry(pinnedPing: GitNotesPinnedPing): Future[GitNotesPingEntry] =
-    Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = dir.asFile)
-      .executeForOutput(pinnedPing.ping.asThrift.toPlaintextStdin)
-      .flatTry(output => GitNotesPingId(output.stdout.trim).asTry)
-      .flatMap(insertPinnedPing(_, pinnedPing))
 }
 
 case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
@@ -252,8 +230,8 @@ case class GitCheckoutRequest(source: GitRemote, revision: GitRevision)
   }
 
   private def createWorktreeForRevision(
-    cloneResult: GitCloneResultLocalDirectory, worktreeBase: GitWorktreeBase,
-  ): Future[GitCheckedOutWorktree] = {
+    cloneResult: GitCloneResultLocalDirectory,
+    worktreeBase: GitWorktreeBase): Future[GitCheckedOutWorktree] = {
     getOrCreateWorktreeDir(worktreeBase.dir).flatMap(Directory(_))
       .flatMap(createVerifyWorktreeDir(cloneResult, _))
   }
@@ -474,16 +452,6 @@ case class GitNotesPinnedPing(ping: GitNotesPing, rev: GitRevision) extends Thri
   override def asThrift = PinnedPing(Some(ping.asThrift), Some(rev.asThrift))
 }
 
-object GitNotesPinnedPing extends GitThriftParser[PinnedPing, GitNotesPinnedPing] {
-  override def apply(pinnedPing: PinnedPing) = asThriftParse("pinned ping", pinnedPing, {
-    val wrappedPing = pinnedPing.ping.derefOptionalField("ping")
-      .flatMap(GitNotesPing(_).asTry)
-    val wrappedRevision = pinnedPing.revision.derefOptionalField("revision")
-      .flatMap(GitRevision(_).asTry)
-    wrappedPing.join(wrappedRevision).map { case (p, r) => GitNotesPinnedPing(p, r) }
-  })
-}
-
 case class GitNotesPingEntry(pingId: GitNotesPingId, ping: GitNotesPinnedPing) {
   def asThriftMapTuple = (pingId.asThrift -> ping.asThrift)
 }
@@ -521,6 +489,8 @@ object GitRevisionRange
 case class GitNotesListParseError(message: String) extends GitError(message)
 
 case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisionRange) {
+  import GitCheckoutPingSpan._
+
   private def allRevisionsInRange: Future[Seq[GitRevision]] =
     Process(
       Seq("git", "log", "--pretty=format:%H", range.asCommandLineArg),
@@ -534,7 +504,7 @@ case class GitCheckoutPingSpan(checkout: GitCheckedOutWorktree, range: GitRevisi
   ): Try[Seq[GitNotesPinnedPingId]] = {
     val notesTries: Seq[Try[Option[GitNotesPinnedPingId]]] = lines.map {
       case "" => Return(None)
-      case GitCheckoutPingSpan.notesListLine(notesRef, commitRef) => {
+      case notesListLine(notesRef, commitRef) => {
         GitObjectHash(notesRef).asTry.join(GitRevision(commitRef).asTry).map {
           case (notesObj, commitRev) => revsInRange(commitRev) match {
             case true => Some(GitNotesPinnedPingId(GitNotesPingId(notesObj), commitRev))
@@ -663,13 +633,50 @@ object GitNotesCollaborationQuery
     })
 }
 
+case class GitNotesPinPingRequest(ping: GitNotesPing, rev: GitRevision) extends Thriftable[PinPingRequest] {
+  override def asThrift = PinPingRequest(Some(ping.asThrift), Some(rev.asThrift))
+
+  // FIXME: do something smarter than just appending! try merging/etc!
+  // FIXME: only return a GitNotesPinnedPing once we actually insert it! call what we have now a
+  // GitNotesPinnedPingRequest!
+  private def insertPinnedPing(
+    pingId: GitNotesPingId, checkout: GitCheckedOutWorktree
+  ): Future[GitNotesPingEntry] = {
+    val appendNotesArgv = Seq(
+      "git", "notes", "append", "-C", pingId.asCommandLineArg, rev.asCommandLineArg)
+
+    Process(appendNotesArgv, cwd = checkout.dir.asFile)
+      .executeForOutput.map { _ =>
+        val pinnedPing = GitNotesPinnedPing(ping, rev)
+        GitNotesPingEntry(pingId, pinnedPing)
+      }
+  }
+
+  def makePingEntry(checkout: GitCheckedOutWorktree): Future[GitNotesPingEntry] =
+    Process(Seq("git", "hash-object", "-w", "--stdin"), cwd = checkout.dir.asFile)
+      .executeForOutput(ping.asThrift.toPlaintextStdin)
+      .flatTry(output => GitNotesPingId(output.stdout.trim).asTry)
+      .flatMap(insertPinnedPing(_, checkout))
+}
+
+object GitNotesPinPingRequest extends GitThriftParser[PinPingRequest, GitNotesPinPingRequest] {
+  override def apply(pinPingRequest: PinPingRequest) = asThriftParse(
+    "pin ping request", pinPingRequest, {
+      val wrappedPing = pinPingRequest.ping.derefOptionalField("ping")
+        .flatMap(GitNotesPing(_).asTry)
+      val wrappedRevision = pinPingRequest.revision.derefOptionalField("revision to pin to")
+        .flatMap(GitRevision(_).asTry)
+      wrappedPing.join(wrappedRevision).map { case (p, r) => GitNotesPinPingRequest(p, r) }
+    })
+}
+
 case class GitNotesPublishPingsRequest(
   collabId: GitNotesCollaborationId,
-  pingsToPublish: Seq[GitNotesPinnedPing],
+  pingsToPublish: Seq[GitNotesPinPingRequest],
 ) extends Thriftable[PublishPingsRequest] {
   def publish(params: GitRepoParams): Future[GitNotesPingCollection] = collabId.asCheckoutRequest
     .checkout(params).flatMap { checkout => pingsToPublish
-      .map(checkout.makePingEntry(_))
+      .map(_.makePingEntry(checkout))
       .collectFutures
       .map(GitNotesPingCollection(_))
     }
@@ -685,11 +692,11 @@ object GitNotesPublishPingsRequest
     "publish pings request", request, {
       val collabId = request.collaborationId.derefOptionalField("collaboration id")
         .flatMap(GitNotesCollaborationId(_).asTry)
-      val publishPingSet = request.pinnedPings.derefOptionalField("pings to publish")
-        .flatMap(_.map(GitNotesPinnedPing(_).asTry).collectTries)
+      val publishPingSet = request.pingsToPin.derefOptionalField("pings to publish")
+        .flatMap(_.map(GitNotesPinPingRequest(_).asTry).collectTries)
 
       collabId.join(publishPingSet).map {
-        case (cid, pings) => GitNotesPublishPingsRequest(cid, pings)
+        case (cid, pingsToPin) => GitNotesPublishPingsRequest(cid, pingsToPin)
       }
     })
 }

@@ -112,17 +112,19 @@ class ReviewBackendServerFeatureTest extends AsyncTwitterFeatureTest {
       Some(UserId(Some("someone@example.com"))),
       Some("some text"))
 
-    val pinnedPing = PinnedPing(Some(emptyPing), Some(Revision(Some(curSha))))
+    val pinPingRequest = PinPingRequest(Some(emptyPing), Some(Revision(Some(curSha))))
+
+    val expectedPinnedPing = PinnedPing(Some(emptyPing), Some(Revision(Some(curSha))))
 
     val collabId = CollaborationId(Some(s"${curRepoRoot.toString}:${prevSha}..${curSha}"))
 
-    val publishRequest = PublishPingsRequest(Some(collabId), Some(Seq(pinnedPing)))
+    val publishRequest = PublishPingsRequest(Some(collabId), Some(Seq(pinPingRequest)))
 
     val writtenPingId = reviewClient.publishPings(publishRequest).map {
       case PublishPingsResponse.PublishedPings(PingCollection(Some(pingMap))) =>
         pingMap.toSeq match {
           case Seq((pingId, returnedPinnedPing)) => {
-            returnedPinnedPing should equal(pinnedPing)
+            returnedPinnedPing should equal(expectedPinnedPing)
             pingId
           }
         }
@@ -139,7 +141,7 @@ class ReviewBackendServerFeatureTest extends AsyncTwitterFeatureTest {
         // TODO: verify the collaboration's Checkout
         val Seq((returnedPingId, returnedPinnedPing)) = collab.pings.get.pingMap.get.toSeq
         returnedPingId should equal(pingId)
-        returnedPinnedPing should equal(pinnedPing)
+        returnedPinnedPing should equal(expectedPinnedPing)
       }
     }}
   }

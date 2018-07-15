@@ -25,6 +25,7 @@ object FutureTryExt {
     def join[S](otherTry: Try[S]): Try[(T, S)] = theTry.flatMap(res => otherTry.map((res, _)))
   }
 
+  // TODO: coalesce `TryOption` and `TrySeq` with some generic implicit like `CanBuildFrom`.
   implicit class TryOption[T](tryOpt: Option[Try[T]]) {
     def flipTryOpt = tryOpt match {
       case Some(theTry) => theTry.map(Some(_))

@@ -4,12 +4,10 @@ import pingpong.protocol.repo_backend._
 import pingpong.protocol.review_backend._
 import pingpong.repo_backends._
 import pingpong.review_backends._
-import pingpong.subsystems.GitRepoParams
 
 import com.twitter.finatra.thrift._
 import com.twitter.finatra.thrift.routing.ThriftRouter
 import com.twitter.inject.Logging
-import com.twitter.scrooge.ToThriftService
 
 import javax.inject.Inject
 

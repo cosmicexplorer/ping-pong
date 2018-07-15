@@ -8,6 +8,8 @@ struct CollaborationId {
   1: optional string cid;
 }
 
+# This represents a ping which has been successfully attached to a specific revision --
+# `PinPingRequest` is consumed in a review backend to produce this.
 struct PinnedPing {
   1: optional pingpong.Ping ping;
   2: optional repo_backend.Revision revision;
@@ -53,9 +55,14 @@ union QueryCollaborationsResponse {
   2: ReviewBackendError error;
 }
 
+struct PinPingRequest {
+  1: optional pingpong.Ping ping;
+  2: optional repo_backend.Revision revision;
+}
+
 struct PublishPingsRequest {
   1: optional CollaborationId collaboration_id;
-  2: optional list<PinnedPing> pinned_pings;
+  2: optional list<PinPingRequest> pings_to_pin;
 }
 
 union PublishPingsResponse {
