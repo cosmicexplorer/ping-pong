@@ -637,8 +637,6 @@ case class GitNotesPinPingRequest(ping: GitNotesPing, rev: GitRevision) extends 
   override def asThrift = PinPingRequest(Some(ping.asThrift), Some(rev.asThrift))
 
   // FIXME: do something smarter than just appending! try merging/etc!
-  // FIXME: only return a GitNotesPinnedPing once we actually insert it! call what we have now a
-  // GitNotesPinnedPingRequest!
   private def insertPinnedPing(
     pingId: GitNotesPingId, checkout: GitCheckedOutWorktree
   ): Future[GitNotesPingEntry] = {
