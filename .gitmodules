@@ -4,3 +4,6 @@
 [submodule "ensime-emacs"]
 	path = pants-plugins/upstreamable/elisp/ensime-emacs
 	url = git@github.com:cosmicexplorer/ensime-emacs
+[submodule "3rdparty/jvm/vendor/coursier"]
+	path = 3rdparty/jvm/vendor/coursier
+	url = git@github.com:cosmicexplorer/coursier
